@@ -16,7 +16,7 @@ import { SessionModule } from "src/session/session.module";
             useFactory: async (configService: ConfigService) => ({
               secret: configService.get<string>('JWT_ACCESS_SECRET'),
               signOptions: {
-                expiresIn: '3m'
+                expiresIn: '60m'
               }
             })
         })

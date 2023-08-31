@@ -9,6 +9,7 @@ import { PermissionModule } from 'src/permission/permission.module';
 @Module({
   imports: [TypeOrmModule.forFeature([Deck]), PermissionModule],
   controllers: [DecksController],
-  providers: [DecksGateway, DecksService]
+  providers: [DecksGateway, DecksService],
+  exports: [DecksService]
 })
 export class DecksModule {}

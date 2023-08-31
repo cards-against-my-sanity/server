@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Deck } from './entities/deck.entity';
 import { CreateDeckDto } from './dto/create-deck.dto';
@@ -9,8 +9,13 @@ import { Repository } from 'typeorm';
 export class DecksService {
   constructor(@InjectRepository(Deck) private decksRepository: Repository<Deck>) {}
 
-  create(createDeckDto: CreateDeckDto) {
-    this.decksRepository.create(createDeckDto)
+  async create(createDeckDto: CreateDeckDto) {
+    const existing = await this.decksRepository.findOneBy({ name: createDeckDto.name });
+    if (existing != null) {
+      throw new ConflictException("deck already exists");
+    }
+
+    this.decksRepository.save(createDeckDto)
   }
 
   findAll() {
@@ -18,7 +23,7 @@ export class DecksService {
   }
 
   findOne(id: string) {
-    return this.decksRepository.findBy({ id })
+    return this.decksRepository.findOneBy({ id })
   }
 
   async update(id: string, updateDeckDto: UpdateDeckDto) {

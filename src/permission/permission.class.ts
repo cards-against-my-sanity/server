@@ -2,14 +2,14 @@ import { PermissionCategory } from "./permission-category.enum";
 
 export class Permission {
     // generic permissions
-    static readonly AllGeneric = new Permission(PermissionCategory.Generic, 0xFFFFFFFFFFFF);
+    static readonly AllGeneric = new Permission(PermissionCategory.Generic, 0x7FFFFFFF);
     static readonly ReportContent = new Permission(PermissionCategory.Generic, 1 << 0);
     static readonly ViewPublicGameHistory = new Permission(PermissionCategory.Generic, 1 << 1);
     static readonly ViewAllGameHistory = new Permission(PermissionCategory.Generic, 1 << 2);
     static readonly ChangeUserDetails = new Permission(PermissionCategory.Generic, 1 << 3);
 
     // gameplay permissions
-    static readonly AllGameplay = new Permission(PermissionCategory.Gameplay, 0xFFFFFFFFFFFF);
+    static readonly AllGameplay = new Permission(PermissionCategory.Gameplay, 0x7FFFFFFF);
     static readonly ViewGames = new Permission(PermissionCategory.Gameplay, 1 << 0);
     static readonly ViewGame = new Permission(PermissionCategory.Gameplay, 1 << 1);
     static readonly JoinGame = new Permission(PermissionCategory.Gameplay, 1 << 2);
@@ -23,7 +23,7 @@ export class Permission {
     static readonly UseCustomWriteIn = new Permission(PermissionCategory.Gameplay, 1 << 10);
 
     // contributor permissions
-    static readonly AllContributor = new Permission(PermissionCategory.Contributor, 0xFFFFFFFFFFFF);
+    static readonly AllContributor = new Permission(PermissionCategory.Contributor, 0x7FFFFFFF);
     static readonly ViewDecks = new Permission(PermissionCategory.Contributor, 1 << 0);
     static readonly ViewDeck = new Permission(PermissionCategory.Contributor, 1 << 1);
     static readonly CreateDeck = new Permission(PermissionCategory.Contributor, 1 << 2);
@@ -34,7 +34,7 @@ export class Permission {
     static readonly DeleteCard = new Permission(PermissionCategory.Contributor, 1 << 7);
 
     // moderator permissions
-    static readonly AllModerator = new Permission(PermissionCategory.Moderator, 0xFFFFFFFFFFFF);
+    static readonly AllModerator = new Permission(PermissionCategory.Moderator, 0x7FFFFFFF);
     static readonly WarnUser = new Permission(PermissionCategory.Moderator, 1 << 0);
     static readonly MuteUser = new Permission(PermissionCategory.Moderator, 1 << 1);
     static readonly BanUser = new Permission(PermissionCategory.Moderator, 1 << 2);
@@ -42,7 +42,7 @@ export class Permission {
     static readonly ViewUserChatHistory = new Permission(PermissionCategory.Moderator, 1 << 4);
 
     // admin permissions
-    static readonly AllAdmin = new Permission(PermissionCategory.Admin, 0xFFFFFFFFFFFF);
+    static readonly AllAdmin = new Permission(PermissionCategory.Admin, 0x7FFFFFFF);
     static readonly ViewUsers = new Permission(PermissionCategory.Admin, 1 << 0);
     static readonly ViewUser = new Permission(PermissionCategory.Admin, 1 << 1);
     static readonly UpdateUser = new Permission(PermissionCategory.Admin, 1 << 2);
