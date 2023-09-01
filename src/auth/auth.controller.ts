@@ -11,14 +11,25 @@ export class AuthController {
     @Post('login')
     @UseGuards(LocalAuthGuard)
     async login(@Req() req, @Res({ passthrough: true }) res) {
-        return this.sendTokens(res, await this.authService.startSession(req.user.id, req.ip));
+        const tokens = await this.authService.startSession(req.user.id, req.ip);
+        res.cookie('refresh', tokens.refresh_token, { httpOnly: true, signed: true });
+
+        return {
+            access_token: tokens.access_token,
+            permissions: req.user.permissions
+        }
     }
 
     @Post('refresh')
     @UseGuards(JwtRefreshTokenGuard)
     async refresh(@Req() req, @Res({ passthrough: true }) res) {
         // req.user.id here is the session id (see JwtRefreshTokenStrategy)
-        return this.sendTokens(res, await this.authService.refreshTokens(req.user.id));
+        const tokens = await this.authService.refreshTokens(req.user.id);
+        res.cookie('refresh', tokens.refresh_token, { httpOnly: true, signed: true });
+
+        return {
+            access_token: tokens.access_token
+        };
     }
 
     @Delete('logout')
@@ -26,10 +37,5 @@ export class AuthController {
     async logOut(@Req() req, @Res({ passthrough: true }) res) {
         this.authService.endSession(req.user.sessionId);
         res.clearCookie('refresh');
-    }
-
-    private sendTokens(res, tokens) {
-        res.cookie('refresh', tokens.refresh_token, { httpOnly: true, signed: true });
-        return { access_token: tokens.access_token };
     }
 }

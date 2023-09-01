@@ -1,10 +1,10 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Req, UseGuards, Res } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { UpdateUserPermissionsDto } from './dto/update-user-permissions.dto';
 import { HasPermissions } from 'src/permission/permissions.decorator';
 import { Permission } from 'src/permission/permission.class';
+import { JwtAccessTokenGuard } from 'src/auth/jwt-access-token/jwt-access-token.guard';
 
 @Controller('users')
 export class UsersController {
@@ -16,32 +16,22 @@ export class UsersController {
   }
 
   @Get()
-  @HasPermissions(Permission.ViewUsers)
-  findAll() {
-    return this.usersService.findAll();
+  @UseGuards(JwtAccessTokenGuard)
+  findSelf(@Req() req) {
+    return this.usersService.findOne(req.user.id);
   }
 
-  @Get(':id')
-  @HasPermissions(Permission.ViewUser)
-  findOne(@Param('id') id: string) {
-    return this.usersService.findOne(id);
+  @Patch()
+  @UseGuards(JwtAccessTokenGuard)
+  @HasPermissions(Permission.ChangeUserDetails)
+  updateSelf(@Req() req, @Body() updateUserDto: UpdateUserDto) {
+    return this.usersService.update(req.user.id, updateUserDto);
   }
 
-  @Patch(':id')
-  @HasPermissions(Permission.UpdateUser) // TODO: users can partially update themselves
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.usersService.update(id, updateUserDto);
-  }
-
-  @Patch('permissions/:id')
-  @HasPermissions(Permission.UpdateUserPermissions)
-  updatePermissions(@Param('id') id: string, @Body() updateUserPermissionsDto: UpdateUserPermissionsDto) {
-    return this.usersService.updatePermissions(id, updateUserPermissionsDto);
-  }
-
-  @Delete(':id')
-  @HasPermissions(Permission.DeleteUser) // TODO: users can delete themselves
-  remove(@Param(':id') id: string) {
-    return this.usersService.remove(id);
+  @Delete()
+  @UseGuards(JwtAccessTokenGuard)
+  removeSelf(@Req() req, @Res({ passthrough: true }) res) {
+    this.usersService.remove(req.user.id);
+    res.clearCookie('refresh');
   }
 }

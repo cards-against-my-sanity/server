@@ -7,7 +7,6 @@ import { Repository } from 'typeorm';
 import * as argon2 from 'argon2';
 import { UserPermission } from './entities/user-permission.entity';
 import { PermissionUtil } from 'src/permission/permission.util';
-import { UpdateUserPermissionsDto } from './dto/update-user-permissions.dto';
 
 @Injectable()
 export class UsersService {
@@ -24,19 +23,19 @@ export class UsersService {
 
     const { randomBytes } = await import('node:crypto');
     const salt = randomBytes(20).toString('hex');
-
     const hash = await argon2.hash(createUserDto.password + salt);
 
-    const permissions = PermissionUtil.createNewUserPermission();
-    this.userPermissionsRepository.save(permissions);
-
-    this.usersRepository.save({
+    const user = await this.usersRepository.save({
       nickname: createUserDto.nickname,
       email: createUserDto.email,
       hash,
-      salt,
-      permissions
+      salt
     });
+
+    const permissions = PermissionUtil.createNewUserPermission();
+    permissions.user = user;
+
+    await this.userPermissionsRepository.save(permissions);
   }
 
   findAll() {
@@ -52,11 +51,31 @@ export class UsersService {
   }
 
   async update(id: string, updateUserDto: UpdateUserDto) {
-    await this.usersRepository.update({ id }, updateUserDto);
-  }
+    const payload = {};
 
-  async updatePermissions(id: string, updateUserPermissionsDto: UpdateUserPermissionsDto) {
-    await this.userPermissionsRepository.update({ user: { id }}, updateUserPermissionsDto);
+    if (updateUserDto.nickname) {
+      payload['nickname'] = updateUserDto.nickname;
+    }
+
+    if (updateUserDto.email) {
+      const existing = await this.usersRepository.findOneBy({ email: updateUserDto.email });
+      if (existing && existing.id !== id) {
+        throw new ConflictException("email already taken by another user");
+      }
+
+      payload['email']  = updateUserDto.email;
+    }
+
+    if (updateUserDto.password) {
+      const { randomBytes } = await import('node:crypto');
+      const salt = randomBytes(20).toString('hex');
+      const hash = await argon2.hash(updateUserDto.password + salt);
+
+      payload['salt'] = salt;
+      payload['hash'] = hash;
+    }
+
+    await this.usersRepository.update({ id }, payload);
   }
 
   async save(user: User) {

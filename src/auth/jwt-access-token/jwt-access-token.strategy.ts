@@ -30,7 +30,7 @@ export class JwtAccessTokenBearerStrategy extends PassportStrategy(Strategy, 'jw
         }
     
         return {
-            ...(await session.user),
+            ...session.user,
             sessionId: session.id
         }
     }

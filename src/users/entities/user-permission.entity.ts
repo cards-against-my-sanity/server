@@ -1,12 +1,15 @@
-import { Column, Entity, OneToOne, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, JoinColumn, OneToOne, PrimaryGeneratedColumn } from "typeorm";
 import { User } from "./user.entity";
+import { Exclude } from "class-transformer";
 
 @Entity()
 export class UserPermission {
     @PrimaryGeneratedColumn('uuid')
+    @Exclude()
     id: string;
 
-    @OneToOne(() => User, (user) => user.permissions)
+    @OneToOne(() => User, (user) => user.permissions, { onDelete: 'CASCADE' })
+    @JoinColumn()
     user: User;
 
     @Column()

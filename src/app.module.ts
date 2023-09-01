@@ -8,10 +8,10 @@ import { AuthModule } from './auth/auth.module';
 import { APP_GUARD } from '@nestjs/core';
 import { PermissionModule } from './permission/permission.module';
 import { PermissionsGuard } from './permission/permissions.guard';
-import { JwtAccessTokenGuard } from './auth/jwt-access-token/jwt-access-token.guard';
 import { AppGateway } from './app.gateway';
-import { JwtAccessTokenWithAnonFallbackGuard } from './auth/jwt-access-token/jwt-access-token-with-anon-fallback.guard copy';
+import { JwtAccessTokenWithAnonFallbackGuard } from './auth/jwt-access-token/jwt-access-token-with-anon-fallback.guard';
 import { SessionModule } from './session/session.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -21,6 +21,7 @@ import { SessionModule } from './session/session.module';
     AuthModule,
     PermissionModule,
     SessionModule,
+    ScheduleModule.forRoot(),
     ConfigModule.forRoot(),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
