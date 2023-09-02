@@ -43,21 +43,21 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
             }, 5 * 60 * 1000)
         );
 
-        client.handshake.auth.user = session.user;
-        client.handshake.auth.sessionId = session.id;
+        client.session.id = session.id;
+        client.session.user = session.user;
 
         client.emit("connection_status", { status: "open", type: "user", message: "Logged in successfully." })
     }
 
     async handleDisconnect(client: Socket) {
-        if (!client.handshake.auth.user || !client.handshake.auth.sessionId) {
+        if (!client.session) {
             return;
         }
 
-        const { sessionId } = client.handshake.auth;
+        const { id } = client.session;
 
-        if (this.schedulerRegistry.doesExist('interval', `ws-reauth:${sessionId}`)) {
-            this.schedulerRegistry.deleteInterval(`ws-reauth:${sessionId}`);
+        if (this.schedulerRegistry.doesExist('interval', `ws-reauth:${id}`)) {
+            this.schedulerRegistry.deleteInterval(`ws-reauth:${id}`);
         }
     }
 

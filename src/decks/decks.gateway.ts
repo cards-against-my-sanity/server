@@ -21,7 +21,7 @@ export class DecksGateway {
   @HasPermissions(Permission.ViewDecks)
   findAll(@ConnectedSocket() client: Socket) {
     console.log("Hello from findAll - user is:");
-    console.log(client.handshake.auth.user);
+    console.log(client.session.user);
     return this.decksService.findAll();
   }
 }
