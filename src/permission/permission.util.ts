@@ -4,9 +4,10 @@ import { PermissionCategory } from "src/permission/permission-category.enum";
 
 export class PermissionUtil {
     static readonly GuestPermissions = [
-        Permission.ViewPublicGameHistory, Permission.ViewGames, Permission.ViewGame,
-        Permission.JoinGame, Permission.CreateGame, Permission.ChangeGameSettings, Permission.InviteToGame,
-        Permission.StartGame, Permission.StopGame, Permission.KickUserFromGame, Permission.ViewDecks, Permission.ViewDeck
+        Permission.ViewPublicGameHistory, Permission.ViewDecks, Permission.ViewDeck, Permission.ViewCards, 
+        Permission.ViewCard, Permission.ViewGames, Permission.ViewGame, Permission.JoinGame, Permission.CreateGame, 
+        Permission.ChangeGameSettings, Permission.InviteToGame, Permission.StartGame, Permission.StopGame, 
+        Permission.KickUserFromGame
     ];
 
     static createNewUserPermission(): UserPermission {

@@ -7,6 +7,10 @@ export class Permission {
     static readonly ViewPublicGameHistory = new Permission(PermissionCategory.Generic, 1 << 1);
     static readonly ViewAllGameHistory = new Permission(PermissionCategory.Generic, 1 << 2);
     static readonly ChangeUserDetails = new Permission(PermissionCategory.Generic, 1 << 3);
+    static readonly ViewDecks = new Permission(PermissionCategory.Generic, 1 << 4);
+    static readonly ViewDeck = new Permission(PermissionCategory.Generic, 1 << 5);
+    static readonly ViewCards = new Permission(PermissionCategory.Generic, 1 << 6);
+    static readonly ViewCard = new Permission(PermissionCategory.Gameplay, 1 << 7);
 
     // gameplay permissions
     static readonly AllGameplay = new Permission(PermissionCategory.Gameplay, 0x7FFFFFFF);
@@ -24,14 +28,12 @@ export class Permission {
 
     // contributor permissions
     static readonly AllContributor = new Permission(PermissionCategory.Contributor, 0x7FFFFFFF);
-    static readonly ViewDecks = new Permission(PermissionCategory.Contributor, 1 << 0);
-    static readonly ViewDeck = new Permission(PermissionCategory.Contributor, 1 << 1);
-    static readonly CreateDeck = new Permission(PermissionCategory.Contributor, 1 << 2);
-    static readonly UpdateDeck = new Permission(PermissionCategory.Contributor, 1 << 3);
-    static readonly DeleteDeck = new Permission(PermissionCategory.Contributor, 1 << 4);
-    static readonly CreateCard = new Permission(PermissionCategory.Contributor, 1 << 5);
-    static readonly UpdateCard = new Permission(PermissionCategory.Contributor, 1 << 6);
-    static readonly DeleteCard = new Permission(PermissionCategory.Contributor, 1 << 7);
+    static readonly CreateDeck = new Permission(PermissionCategory.Contributor, 1 << 0);
+    static readonly UpdateDeck = new Permission(PermissionCategory.Contributor, 1 << 1);
+    static readonly DeleteDeck = new Permission(PermissionCategory.Contributor, 1 << 2);
+    static readonly CreateCard = new Permission(PermissionCategory.Contributor, 1 << 3);
+    static readonly UpdateCard = new Permission(PermissionCategory.Contributor, 1 << 4);
+    static readonly DeleteCard = new Permission(PermissionCategory.Contributor, 1 << 5);
 
     // moderator permissions
     static readonly AllModerator = new Permission(PermissionCategory.Moderator, 0x7FFFFFFF);

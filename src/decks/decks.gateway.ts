@@ -4,10 +4,10 @@ import { UseGuards } from '@nestjs/common';
 import { Socket } from 'socket.io';
 import { HasPermissions } from 'src/permission/permissions.decorator';
 import { Permission } from 'src/permission/permission.class';
-import { PermissionsWebsocketGuard } from 'src/permission/permissions.ws.guard';
+import { PermissionsGuard } from 'src/permission/permissions.guard';
 
 @WebSocketGateway()
-@UseGuards(PermissionsWebsocketGuard)
+@UseGuards(PermissionsGuard)
 export class DecksGateway {
   constructor(private readonly decksService: DecksService) {}
   
@@ -20,8 +20,6 @@ export class DecksGateway {
   @SubscribeMessage('findAllDecks')
   @HasPermissions(Permission.ViewDecks)
   findAll(@ConnectedSocket() client: Socket) {
-    console.log("Hello from findAll - user is:");
-    console.log(client.session.user);
     return this.decksService.findAll();
   }
 }

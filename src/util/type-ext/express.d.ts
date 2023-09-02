@@ -1,18 +1,9 @@
 import { Request } from "express";
+import { User } from "src/users/entities/user.entity";
 
 declare module 'express-serve-static-core' {
     interface Request {
-        user?: {
-            id: string,
-            nickname: string,
-            email: string,
-            permissions: {
-                generic_permissions: number,
-                gameplay_permissions: number,
-                contributor_permissions: number,
-                moderator_permissions: number,
-                admin_permissions: number
-            },
+        user?: User & {
             session_id: string
         }
     }

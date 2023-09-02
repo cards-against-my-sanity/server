@@ -1,5 +1,4 @@
-import { Card } from "src/cards/entities/card.entity";
-import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
 
 @Entity()
 export class Deck {
@@ -11,7 +10,4 @@ export class Deck {
 
     @Column()
     description: string;
-
-    @OneToMany(() => Card, (card) => card.deck, { eager: true })
-    cards: Card[];
 }

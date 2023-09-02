@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post } from '@nestjs/common';
 import { CreateDeckDto } from './dto/create-deck.dto';
 import { UpdateDeckDto } from './dto/update-deck.dto';
 import { DecksService } from './decks.service';
@@ -9,6 +9,24 @@ import { Permission } from 'src/permission/permission.class';
 export class DecksController {
     constructor(private readonly decksService: DecksService) {}
 
+    @Get()
+    @HasPermissions(Permission.ViewDecks)
+    findAll() {
+      return this.decksService.findAll();
+    }
+
+    @Get(':id')
+    @HasPermissions(Permission.ViewDeck)
+    async findOne(@Param('id') id: string) {
+      const deck = await this.decksService.findOne(id);
+      
+      if (!deck) {
+        throw new NotFoundException();
+      }
+      
+      return deck;
+    }
+    
     @Post()
     @HasPermissions(Permission.CreateDeck)
     create(@Body() createDeckDto: CreateDeckDto) {

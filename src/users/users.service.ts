@@ -33,7 +33,7 @@ export class UsersService {
     });
 
     const permissions = PermissionUtil.createNewUserPermission();
-    permissions.user = user;
+    permissions.user = Promise.resolve(user);
 
     await this.userPermissionsRepository.save(permissions);
   }

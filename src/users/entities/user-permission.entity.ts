@@ -12,7 +12,7 @@ export class UserPermission {
     @OneToOne(() => User, (user) => user.permissions, { 
         onDelete: 'CASCADE' 
     })
-    user: User;
+    user: Promise<User>;
 
     @Column()
     generic_permissions: number;

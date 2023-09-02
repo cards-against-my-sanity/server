@@ -16,6 +16,8 @@ export class Card {
     @Column()
     num_answers: number;
 
-    @ManyToOne(() => Deck, (deck) => deck.cards)
-    deck: Deck;
+    @ManyToOne(() => Deck, {
+        onDelete: 'CASCADE'
+    })
+    deck: Promise<Deck>;
 }

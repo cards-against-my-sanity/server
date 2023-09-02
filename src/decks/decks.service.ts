@@ -4,10 +4,13 @@ import { Deck } from './entities/deck.entity';
 import { CreateDeckDto } from './dto/create-deck.dto';
 import { UpdateDeckDto } from './dto/update-deck.dto';
 import { Repository } from 'typeorm';
+import { CardsService } from 'src/cards/cards.service';
 
 @Injectable()
 export class DecksService {
-  constructor(@InjectRepository(Deck) private decksRepository: Repository<Deck>) {}
+  constructor(
+    @InjectRepository(Deck) private readonly decksRepository: Repository<Deck>
+  ) {}
 
   async create(createDeckDto: CreateDeckDto) {
     const existing = await this.decksRepository.findOneBy({ name: createDeckDto.name });
@@ -27,6 +30,13 @@ export class DecksService {
   }
 
   async update(id: string, updateDeckDto: UpdateDeckDto) {
+    if (updateDeckDto.name) {
+      const existing = await this.decksRepository.findOneBy({ name: updateDeckDto.name });
+      if (existing != null) {
+        throw new ConflictException("deck already exists");
+      }
+    }
+
     await this.decksRepository.update({ id }, updateDeckDto)
   }
 

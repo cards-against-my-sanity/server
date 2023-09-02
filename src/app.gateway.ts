@@ -43,8 +43,10 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
             }, 5 * 60 * 1000)
         );
 
-        client.session.id = session.id;
-        client.session.user = session.user;
+        client.session = {
+            id: session.id,
+            user: session.user
+        };
 
         client.emit("connection_status", { status: "open", type: "user", message: "Logged in successfully." })
     }
