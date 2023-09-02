@@ -3,7 +3,6 @@ import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
 import { ExtractJwt, Strategy } from "passport-jwt";
 import { SessionService } from "src/session/session.service";
-import { UsersService } from "src/users/users.service";
 
 interface AccessTokenSchema {
     sub: string
@@ -12,9 +11,8 @@ interface AccessTokenSchema {
 @Injectable()
 export class JwtAccessTokenBearerStrategy extends PassportStrategy(Strategy, 'jwt-access-token') {
     constructor(
-        private readonly configService: ConfigService,
-        private readonly sessionService: SessionService,
-        private readonly usersService: UsersService
+        configService: ConfigService,
+        private readonly sessionService: SessionService
     ) {
         super({
             jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -31,7 +29,7 @@ export class JwtAccessTokenBearerStrategy extends PassportStrategy(Strategy, 'jw
     
         return {
             ...session.user,
-            sessionId: session.id
+            session_id: session.id
         }
     }
 }

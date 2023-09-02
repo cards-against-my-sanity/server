@@ -5,6 +5,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { HasPermissions } from 'src/permission/permissions.decorator';
 import { Permission } from 'src/permission/permission.class';
 import { JwtAccessTokenGuard } from 'src/auth/jwt-access-token/jwt-access-token.guard';
+import { Request, Response } from 'express';
 
 @Controller('users')
 export class UsersController {
@@ -17,20 +18,20 @@ export class UsersController {
 
   @Get()
   @UseGuards(JwtAccessTokenGuard)
-  findSelf(@Req() req) {
+  findSelf(@Req() req: Request) {
     return this.usersService.findOne(req.user.id);
   }
 
   @Patch()
   @UseGuards(JwtAccessTokenGuard)
   @HasPermissions(Permission.ChangeUserDetails)
-  updateSelf(@Req() req, @Body() updateUserDto: UpdateUserDto) {
+  updateSelf(@Req() req: Request, @Body() updateUserDto: UpdateUserDto) {
     return this.usersService.update(req.user.id, updateUserDto);
   }
 
   @Delete()
   @UseGuards(JwtAccessTokenGuard)
-  removeSelf(@Req() req, @Res({ passthrough: true }) res) {
+  removeSelf(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     this.usersService.remove(req.user.id);
     res.clearCookie('refresh');
   }

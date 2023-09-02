@@ -21,6 +21,9 @@ export class User {
     @Exclude()
     salt: string;
 
-    @OneToOne(() => UserPermission, (permission) => permission.user, { eager: true })
+    @OneToOne(() => UserPermission, (permission) => permission.user, { 
+        eager: true,
+        onDelete: 'CASCADE'
+    })
     permissions: UserPermission
 }

@@ -1,8 +1,9 @@
-import { Controller, Delete, Post, Req, Res, UnauthorizedException, UseGuards } from '@nestjs/common';
+import { Controller, Delete, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { LocalAuthGuard } from './local-auth/local-auth.guard';
 import { AuthService } from './auth.service';
 import { JwtRefreshTokenGuard } from './jwt-refresh-token/jwt-refresh-token.guard';
 import { JwtAccessTokenGuard } from './jwt-access-token/jwt-access-token.guard';
+import { Request, Response } from 'express';
 
 @Controller('auth')
 export class AuthController {
@@ -10,7 +11,7 @@ export class AuthController {
 
     @Post('login')
     @UseGuards(LocalAuthGuard)
-    async login(@Req() req, @Res({ passthrough: true }) res) {
+    async login(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
         const tokens = await this.authService.startSession(req.user.id, req.ip);
         res.cookie('refresh', tokens.refresh_token, { httpOnly: true, signed: true });
 
@@ -22,9 +23,8 @@ export class AuthController {
 
     @Post('refresh')
     @UseGuards(JwtRefreshTokenGuard)
-    async refresh(@Req() req, @Res({ passthrough: true }) res) {
-        // req.user.id here is the session id (see JwtRefreshTokenStrategy)
-        const tokens = await this.authService.refreshTokens(req.user.id);
+    async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+        const tokens = await this.authService.refreshTokens(req.user.session_id);
         res.cookie('refresh', tokens.refresh_token, { httpOnly: true, signed: true });
 
         return {
@@ -34,8 +34,8 @@ export class AuthController {
 
     @Delete('logout')
     @UseGuards(JwtAccessTokenGuard)
-    async logOut(@Req() req, @Res({ passthrough: true }) res) {
-        this.authService.endSession(req.user.sessionId);
+    async logOut(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+        this.authService.endSession(req.user.session_id);
         res.clearCookie('refresh');
     }
 }

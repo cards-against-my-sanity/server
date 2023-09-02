@@ -8,8 +8,10 @@ export class UserPermission {
     @Exclude()
     id: string;
 
-    @OneToOne(() => User, (user) => user.permissions, { onDelete: 'CASCADE' })
     @JoinColumn()
+    @OneToOne(() => User, (user) => user.permissions, { 
+        onDelete: 'CASCADE' 
+    })
     user: User;
 
     @Column()

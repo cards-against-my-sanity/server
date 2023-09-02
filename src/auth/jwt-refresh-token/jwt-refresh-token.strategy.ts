@@ -2,7 +2,7 @@ import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
 import { Request } from "express";
-import { ExtractJwt, Strategy } from "passport-jwt";
+import { Strategy } from "passport-jwt";
 import { SessionService } from "src/session/session.service";
 
 interface RefreshTokenSchema {
@@ -12,7 +12,7 @@ interface RefreshTokenSchema {
 @Injectable()
 export class JwtRefreshTokenStrategy extends PassportStrategy(Strategy, 'jwt-refresh-token') {
     constructor(
-        private readonly configService: ConfigService,
+        configService: ConfigService,
         private readonly sessionService: SessionService
     ) {
         super({
@@ -34,6 +34,6 @@ export class JwtRefreshTokenStrategy extends PassportStrategy(Strategy, 'jwt-ref
             throw new UnauthorizedException("Session expired or revoked.");
         }
 
-        return { id: payload.sub }
+        return { session_id: payload.sub }
     }
 }
