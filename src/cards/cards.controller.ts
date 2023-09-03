@@ -1,11 +1,14 @@
-import { BadRequestException, Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post } from '@nestjs/common';
 import { CardsService } from './cards.service';
-import { CreateCardDto } from './dto/create-card.dto';
-import { UpdateCardDto } from './dto/update-card.dto';
 import { HasPermissions } from 'src/permission/permissions.decorator';
 import { Permission } from 'src/permission/permission.class';
 import { RequiredQuery } from 'src/util/required-query.decorator';
 import { DecksService } from 'src/decks/decks.service';
+import { CardType } from './card-type.enum';
+import { CreateBlackCardDto } from './dto/create-black-card.dto';
+import { CreateWhiteCardDto } from './dto/create-white-card.dto';
+import { UpdateWhiteCardDto } from './dto/update-white-card.dto';
+import { UpdateBlackCardDto } from './dto/update-black-card.dto';
 
 @Controller('cards')
 export class CardsController {
@@ -16,7 +19,7 @@ export class CardsController {
 
     @Get()
     @HasPermissions(Permission.ViewCards)
-    async findAll(@RequiredQuery('deck') deck: string, @RequiredQuery('per_page') perPage: number, @RequiredQuery('page') page: number) {
+    async findAll(@RequiredQuery('deck') deck: string, @RequiredQuery("card_type") cardType: CardType, @RequiredQuery('per_page') perPage: number, @RequiredQuery('page') page: number) {
       if (!(await this.decksService.findOne(deck))) {
         throw new NotFoundException("unknown deck");
       }
@@ -27,14 +30,14 @@ export class CardsController {
       page = Math.floor(page);
       page = page < 1 ? 1 : page;
 
-      const total = await this.cardsService.countAllInDeck(deck);
+      const total = await this.cardsService.countAllInDeck(deck, cardType);
       const totalPages = Math.ceil(total / perPage) || 1;
       
       if (page > totalPages) {
         throw new BadRequestException("page is beyond total pages available");
       }
 
-      const cards = await this.cardsService.findAllInDeck(deck, page == 1 ? 0 : (page - 1) * perPage, perPage);
+      const cards = await this.cardsService.findAllInDeck(deck, cardType, page == 1 ? 0 : (page - 1) * perPage, perPage);
 
       return {
         pagination: {
@@ -48,25 +51,37 @@ export class CardsController {
 
     @Get(':id')
     @HasPermissions(Permission.ViewCard)
-    findOne(@Param('id') id: string) {
-      return this.cardsService.findOne(id);
+    findOne(@Param('id') id: string, @RequiredQuery("card_type") cardType: CardType) {
+      return this.cardsService.findOne(id, cardType);
     }
 
-    @Post()
+    @Post("white")
     @HasPermissions(Permission.CreateCard)
-    create(@Body() createCardDto: CreateCardDto) {
-      return this.cardsService.create(createCardDto);
+    createWhiteCard(@Body() dto: CreateWhiteCardDto) {
+      return this.cardsService.createWhiteCard(dto);
+    }
+
+    @Post("black")
+    @HasPermissions(Permission.CreateCard)
+    createBlackCard(@Body() dto: CreateBlackCardDto) {
+      return this.cardsService.createBlackCard(dto);
     }
   
-    @Patch(':id')
+    @Patch('white/:id')
     @HasPermissions(Permission.UpdateCard)
-    update(@Param('id') id: string, @Body() updateCardDto: UpdateCardDto) {
-      return this.cardsService.update(id, updateCardDto);
+    updateWhiteCard(@Param('id') id: string, @Body() dto: UpdateWhiteCardDto) {
+      return this.cardsService.updateWhiteCard(id, dto);
+    }
+
+    @Patch('black/:id')
+    @HasPermissions(Permission.UpdateCard)
+    updateBlackCard(@Param('id') id: string, @Body() dto: UpdateBlackCardDto) {
+      return this.cardsService.updateBlackCard(id, dto);
     }
   
     @Delete(':id')
     @HasPermissions(Permission.DeleteCard)
-    remove(@Param('id') id: string) {
-      return this.cardsService.remove(id);
+    remove(@Param('id') id: string, @RequiredQuery("card_type") cardType: CardType) {
+      return this.cardsService.remove(id, cardType);
     }
 }

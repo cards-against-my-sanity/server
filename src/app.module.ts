@@ -12,6 +12,9 @@ import { AppGateway } from './app.gateway';
 import { JwtAccessTokenWithAnonFallbackGuard } from './auth/jwt-access-token/jwt-access-token-with-anon-fallback.guard';
 import { SessionModule } from './session/session.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { GamesModule } from './games/games.module';
+import { GameasService } from './gameas/gameas.service';
+import { RedisModule } from '@songkeys/nestjs-redis';
 
 @Module({
   imports: [
@@ -23,6 +26,16 @@ import { ScheduleModule } from '@nestjs/schedule';
     SessionModule,
     ScheduleModule.forRoot(),
     ConfigModule.forRoot(),
+    RedisModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        config: {
+          host: configService.get<string>('REDIS_HOST'),
+          port: parseInt(configService.get<string>('REDIS_PORT'))
+        }
+      })
+    }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -36,7 +49,8 @@ import { ScheduleModule } from '@nestjs/schedule';
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
         synchronize: true,
       })
-    })
+    }),
+    GamesModule
   ],
   providers: [
     {
@@ -47,7 +61,8 @@ import { ScheduleModule } from '@nestjs/schedule';
       provide: APP_GUARD,
       useClass: PermissionsGuard
     },
-    AppGateway
+    AppGateway,
+    GameasService
   ]
 })
 export class AppModule {}
