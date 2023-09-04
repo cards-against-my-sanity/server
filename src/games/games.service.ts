@@ -31,6 +31,15 @@ export class GamesService extends EventEmitter {
         }
 
         const game = new Game(host);
+        
+        game.on('playerJoinedGame', this.forwardEvent);
+        game.on('playerLeftGame', this.forwardEvent);
+        game.on('hostLeftGame', this.forwardEvent);
+        game.on('spectatorJoinedGame', this.forwardEvent);
+        game.on('spectatorLeftGame', this.forwardEvent);
+        game.on('gameStateChanged', this.forwardEvent);
+        game.on('gameStarted', this.forwardEvent);
+        
         this.games.push(game);
         return game;
     }
@@ -92,21 +101,25 @@ export class GamesService extends EventEmitter {
 
     /**
      * Attempts to add the given user to the game specified
-     * by the given game id.
+     * by the given game id as a player.
      * 
      * @param gameId the id of the game to add the user to
      * @param user the user to add to the game
      * 
      * @returns UNKNOWN_GAME: if the game does not exist
      * 
-     *          ALREADY_IN_GAME: if the user is already in
-     *          a game
+     *          ALREADY_IN_GAME: if the user is already
+     *          playing in a game.
+     * 
+     *          ALREADY_SPECTATING: if the user is already
+     *          spectating a game.
      *
      *          NOT_IN_LOBBY_STATE: if the game is
      *          not in the lobby state
      * 
      *          MAX_PLAYERS_REACHED: if the game
-     *          has too many players
+     *          has too many players and user is
+     *          attempting to join as player
      * 
      *          ACTION_OK: if the player has been added
      */
@@ -120,24 +133,28 @@ export class GamesService extends EventEmitter {
             return GameStatusCode.ALREADY_IN_GAME;
         }
 
+        if (this.games.some(g => g.hasSpectator(user.id))) {
+            return GameStatusCode.ALREADY_SPECTATING;
+        }
+
         return game.addPlayer(user);
     }
 
     /**
-     * Attempts to remove the user specified by the given user id
-     * from the game specified by the given game id.
+     * Attempts to remove the user specified by the given user id,
+     * as player, from the game specified by the given game id.
      * 
      * @param gameId the id of the game to remove the user from
      * @param userId the id of the user to remove from the game
      * 
      * @returns UNKNOWN_GAME: if the game does not
      *          exist
+     *          
+     *          NOT_IN_GAME: if the user is not playing
+     *          the game
      * 
-     *          NOT_IN_GAME: if the player is not
-     *          in the game
-     * 
-     *          ACTION_OK: if the player has been
-     *          removed
+     *          ACTION_OK: if the user has been
+     *          removed as player
      */
     removePlayerFromGame(gameId: string, userId: string): GameStatusCode {
         const game = this.games.find(g => g.getId() === gameId);
@@ -149,11 +166,85 @@ export class GamesService extends EventEmitter {
     }
 
     /**
+     * Attempts to add the given user to the game specified
+     * by the given game id as a spectator.
+     * 
+     * @param gameId the id of the game to add the user to
+     * @param user the user to add to the game
+     * 
+     * @returns UNKNOWN_GAME: if the game does not exist
+     * 
+     *          ALREADY_IN_GAME: if the user is already
+     *          playing in a game.
+     * 
+     *          ALREADY_SPECTATING: if the user is already
+     *          spectating a game.
+     * 
+     *          MAX_SPECTATORS_REACHED: if the game
+     *          has too many spectators.
+     * 
+     *          ACTION_OK: if the player has been added
+     */
+    addSpectatorToGame(gameId: string, user: User): GameStatusCode {
+        const game = this.games.find(g => g.getId() === gameId);
+        if (!game) {
+            return GameStatusCode.UNKNOWN_GAME;
+        }
+        
+        if (this.games.some(g => g.hasSpectator(user.id))) {
+            return GameStatusCode.ALREADY_SPECTATING;
+        }
+
+        if (this.games.some(g => g.hasPlayer(user.id))) {
+            return GameStatusCode.ALREADY_IN_GAME;
+        }
+
+        return game.addSpectator(user);
+    }
+
+    /**
+     * Attempts to remove the user specified by the given user id,
+     * as spectator, from the game specified by the given game id.
+     * 
+     * @param gameId the id of the game to remove the user from
+     * @param userId the id of the user to remove from the game
+     * 
+     * @returns UNKNOWN_GAME: if the game does not
+     *          exist
+     *          
+     *          NOT_SPECTATING_GAME: if the user is not playing
+     *          the game
+     * 
+     *          ACTION_OK: if the user has been
+     *          removed as player
+     */
+    removeSpectatorFromGame(gameId: string, userId: string): GameStatusCode {
+        const game = this.games.find(g => g.getId() === gameId);
+        if (!game) {
+            return GameStatusCode.UNKNOWN_GAME;
+        }
+
+        return game.removeSpectator(userId);
+    }
+
+    /**
      * Removes the game specified by the given id
      * 
      * @param id the id of the game to remove
      */
     removeGame(id: string) {
         this.games = this.games.filter(g => g.getId() !== id);
+    }
+
+    /**
+     * Forwards event onward to the gateway for final
+     * handling
+     * 
+     * @param payload the payload contains the game id
+     *                and any other relevant data on a
+     *                contextual basis
+     */
+    private forwardEvent(payload: Record<string, any>) {
+        this.emit(payload.name, { ...payload });
     }
 }

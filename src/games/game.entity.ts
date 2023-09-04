@@ -254,18 +254,21 @@ export class Game extends EventEmitter {
      * Fires spectatorJoinedGame event.
      * 
      * @param id the id of the user to add
-     * @returns false if if the max spectator count has 
-     *          been reached; true otherwise
+     * @returns MAX_SPECTATORS_REACHED: if the game
+     *          has too many spectators
+     * 
+     *          ACTION_OK: if the spectator has been
+     *          added
      */
-    addSpectator(user: User): boolean {
+    addSpectator(user: User): GameStatusCode {
         if (this.spectators.length + 1 > this.maxSpectators) {
-            return false;
+            return GameStatusCode.MAX_SPECTATORS_REACHED;
         }
 
         this.spectators.push(new Spectator(user));
 
         this.event('spectatorJoinedGame');
-        return true;
+        return GameStatusCode.ACTION_OK;
     }
 
     /**
@@ -291,19 +294,23 @@ export class Game extends EventEmitter {
      * Fires spectatorLeftGame event.
      * 
      * @param id the id of the user to remove
-     * @returns false if the user with that id is not 
-     *          spectating the game, true otherwise
+     * 
+     * @returns NOT_SPECTATING_GAME: if the user is
+     *          not spectating the game
+     * 
+     *          ACTION_OK: if the spectator has been
+     *          removed
      */
-    removeSpectator(id: string): boolean {
+    removeSpectator(id: string): GameStatusCode {
         const idx = this.spectators.findIndex(s => s.getUser().id === id);
         if (idx === -1) {
-            return false;
+            return GameStatusCode.NOT_SPECTATING_GAME;
         }
 
         this.spectators = this.spectators.filter(s => s.getUser().id !== id);
 
         this.event('spectatorLeftGame');
-        return true;
+        return GameStatusCode.ACTION_OK;
     }
 
     /**
@@ -318,10 +325,13 @@ export class Game extends EventEmitter {
     /**
      * Sets the current game state.
      * 
+     * Fires gameStateChanged event.
+     * 
      * @param state the new game state
      */
     setState(state: GameState) {
         this.state = state;
+        this.event('gameStateChanged', { state });
     }
 
     /**
@@ -429,8 +439,6 @@ export class Game extends EventEmitter {
      * the game has moved to the next state. False otherwise.
      * 
      * Transitions game from Dealing state to Playing state.
-     * 
-     * Fires dealingBegin and dealingEnd events.
      */
     dealingState() {
         // TODO: write dealing
@@ -527,9 +535,9 @@ export class Game extends EventEmitter {
      */
     private event(name: string, payload?: Record<string, any>) {
         if (payload) {
-            this.emit(name, { ...payload, id: this.id });
+            this.emit(name, { ...payload, name, id: this.id });
         } else {
-            this.emit(name, { id: this.id });
+            this.emit(name, { name, id: this.id });
         }
     }
 }
