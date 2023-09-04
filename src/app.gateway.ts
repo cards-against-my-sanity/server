@@ -15,7 +15,7 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     async handleConnection(client: Socket) {
         if (!client.handshake.query || !client.handshake.query.token) {
-            client.emit("connection_status", { state: "open", type: "guest", message: "Logged in as guest." });
+            client.emit("connection_status", { state: "open", type: "guest" });
             return;
         }
 
@@ -48,7 +48,7 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
             user: session.user
         };
 
-        client.emit("connection_status", { status: "open", type: "user", message: "Logged in successfully." })
+        client.emit("connection_status", { status: "open", type: "user" })
     }
 
     async handleDisconnect(client: Socket) {

@@ -3,18 +3,14 @@ import { Permission } from "./permission.class";
 import { PermissionCategory } from "src/permission/permission-category.enum";
 
 export class PermissionUtil {
-    static readonly GuestPermissions = [
-        Permission.ViewPublicGameHistory, Permission.ViewDecks, Permission.ViewDeck, Permission.ViewCards, 
-        Permission.ViewCard, Permission.ViewGames, Permission.ViewGame, Permission.JoinGame, Permission.CreateGame, 
-        Permission.ChangeGameSettings, Permission.InviteToGame, Permission.StartGame, Permission.StopGame, 
-        Permission.KickUserFromGame
-    ];
-
     static createNewUserPermission(): UserPermission {
         const permissionObj = new UserPermission();
         const permissions = [            
-            ...this.GuestPermissions,
-            Permission.ReportContent, Permission.ChangeUserDetails, Permission.SendChat, Permission.UseCustomWriteIn
+            Permission.ViewPublicGameHistory, Permission.ViewDecks, Permission.ViewDeck, Permission.ViewCards, 
+            Permission.ViewCard, Permission.ViewGames, Permission.ViewGame, Permission.JoinGame, Permission.CreateGame, 
+            Permission.ChangeGameSettings, Permission.InviteToGame, Permission.StartGame, Permission.StopGame, 
+            Permission.KickUserFromGame, Permission.ReportContent, Permission.ChangeUserDetails, Permission.SendChat, 
+            Permission.UseCustomWriteIn
         ];
         
         permissions.forEach(permission => {

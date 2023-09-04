@@ -58,11 +58,7 @@ export class UsersService {
     }
 
     if (updateUserDto.email) {
-      const existing = await this.usersRepository.findOneBy({ email: updateUserDto.email });
-      if (existing && existing.id !== id) {
-        throw new ConflictException("email already taken by another user");
-      }
-
+      // TODO: email verification
       payload['email']  = updateUserDto.email;
     }
 

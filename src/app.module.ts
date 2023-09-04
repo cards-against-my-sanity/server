@@ -9,12 +9,11 @@ import { APP_GUARD } from '@nestjs/core';
 import { PermissionModule } from './permission/permission.module';
 import { PermissionsGuard } from './permission/permissions.guard';
 import { AppGateway } from './app.gateway';
-import { JwtAccessTokenWithAnonFallbackGuard } from './auth/jwt-access-token/jwt-access-token-with-anon-fallback.guard';
 import { SessionModule } from './session/session.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { GamesModule } from './games/games.module';
-import { GameasService } from './gameas/gameas.service';
 import { RedisModule } from '@songkeys/nestjs-redis';
+import { JwtAccessTokenGuard } from './auth/jwt-access-token/jwt-access-token.guard';
 
 @Module({
   imports: [
@@ -55,14 +54,13 @@ import { RedisModule } from '@songkeys/nestjs-redis';
   providers: [
     {
       provide: APP_GUARD,
-      useClass: JwtAccessTokenWithAnonFallbackGuard
+      useClass: JwtAccessTokenGuard
     },
     {
       provide: APP_GUARD,
       useClass: PermissionsGuard
     },
-    AppGateway,
-    GameasService
+    AppGateway
   ]
 })
 export class AppModule {}

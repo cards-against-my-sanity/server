@@ -48,10 +48,6 @@ export class PermissionsGuard implements CanActivate {
   }
   
   private testUser(user: User, perms: Permission[]): boolean {
-    if (!user) {
-      return perms.every(permission => PermissionUtil.GuestPermissions.includes(permission));
-    } else {
-      return perms.every(permission => this.permissionService.hasPermission(user, permission));
-    }
+    return !user ? false : perms.every(permission => this.permissionService.hasPermission(user, permission));
   }
 }

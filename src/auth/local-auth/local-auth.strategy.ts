@@ -7,7 +7,7 @@ import * as argon2 from 'argon2';
 @Injectable()
 export class LocalAuthStrategy extends PassportStrategy(Strategy) {
     constructor(private readonly usersService: UsersService) {
-        super({ usernameField: 'email' });
+        super({ usernameField: 'nickname' });
     }
 
     async validate(username: string, password: string) {

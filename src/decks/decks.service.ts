@@ -29,6 +29,10 @@ export class DecksService {
     return this.decksRepository.findOneBy({ id })
   }
 
+  exist(id: string) {
+    return this.decksRepository.exist({ where: { id }})
+  }
+
   async update(id: string, updateDeckDto: UpdateDeckDto) {
     if (updateDeckDto.name) {
       const existing = await this.decksRepository.findOneBy({ name: updateDeckDto.name });

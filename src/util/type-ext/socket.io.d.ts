@@ -3,7 +3,7 @@ import { User } from "src/users/entities/user.entity"
 
 declare module 'socket.io' {
     interface Socket {
-        session?: {
+        session: {
             id: string,
             user: User
         }
