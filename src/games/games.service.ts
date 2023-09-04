@@ -4,6 +4,7 @@ import { DecksService } from 'src/decks/decks.service';
 import { CardsService } from 'src/cards/cards.service';
 import { User } from 'src/users/entities/user.entity';
 import { EventEmitter } from 'stream';
+import { GameStatusCode } from './game-status-code.constants';
 
 @Injectable()
 export class GamesService extends EventEmitter {
@@ -21,19 +22,17 @@ export class GamesService extends EventEmitter {
      * 
      * @param host the user id of the host
      * 
-     * @returns the id of the created game or null if the user is
+     * @returns the created game or null if the user is
      *          already hosting a game
      */
-    createGame(host: User): string {
+    createGame(host: User): Game {
         if (this.getGameHostedBy(host)) {
             return null;
         }
 
         const game = new Game(host);
-
         this.games.push(game);
-
-        return game.getId();
+        return game;
     }
 
     /**
@@ -97,22 +96,30 @@ export class GamesService extends EventEmitter {
      * 
      * @param gameId the id of the game to add the user to
      * @param user the user to add to the game
-     * @returns true if the player has been added, false if
-     *          the player is already in a game or if the
-     *          game does not exist or if the game is not
-     *          accepting players, or if the game already
-     *          has the maximum amount of players.
+     * 
+     * @returns UNKNOWN_GAME: if the game does not exist
+     * 
+     *          ALREADY_IN_GAME: if the user is already in
+     *          a game
+     *
+     *          NOT_IN_LOBBY_STATE: if the game is
+     *          not in the lobby state
+     * 
+     *          MAX_PLAYERS_REACHED: if the game
+     *          has too many players
+     * 
+     *          ACTION_OK: if the player has been added
      */
-    addPlayerToGame(gameId: string, user: User): boolean {
-        if (this.games.some(g => g.hasPlayer(user.id))) {
-            return false;
-        }
-
+    addPlayerToGame(gameId: string, user: User): GameStatusCode {
         const game = this.games.find(g => g.getId() === gameId);
         if (!game) {
-            return false;
+            return GameStatusCode.UNKNOWN_GAME;
         }
-        
+
+        if (this.games.some(g => g.hasPlayer(user.id))) {
+            return GameStatusCode.ALREADY_IN_GAME;
+        }
+
         return game.addPlayer(user);
     }
 
@@ -122,14 +129,20 @@ export class GamesService extends EventEmitter {
      * 
      * @param gameId the id of the game to remove the user from
      * @param userId the id of the user to remove from the game
-     * @return true if the player has been removed, false if
-     *         the player was not in the game or if the game
-     *         did not exist
+     * 
+     * @returns UNKNOWN_GAME: if the game does not
+     *          exist
+     * 
+     *          NOT_IN_GAME: if the player is not
+     *          in the game
+     * 
+     *          ACTION_OK: if the player has been
+     *          removed
      */
-    removePlayerFromGame(gameId: string, userId: string): boolean {
+    removePlayerFromGame(gameId: string, userId: string): GameStatusCode {
         const game = this.games.find(g => g.getId() === gameId);
         if (!game) {
-            return false;
+            return GameStatusCode.UNKNOWN_GAME;
         }
 
         return game.removePlayer(userId);

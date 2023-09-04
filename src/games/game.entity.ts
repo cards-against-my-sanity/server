@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { WhiteCard } from "src/cards/entities/white-card.entity";
 import { BlackCard } from "src/cards/entities/black-card.entity";
 import { Deck } from "src/decks/entities/deck.entity";
-import { GameErrorCode } from "./game-error-code.constants";
+import { GameStatusCode } from "./game-status-code.constants";
 import { EventEmitter } from "stream";
 import { User } from "src/users/entities/user.entity";
 import { Spectator } from "./spectator.entity";
@@ -164,20 +164,29 @@ export class Game extends EventEmitter {
      * Fires playerJoinedGame event.
      * 
      * @param id the id of the user to add
-     * @returns false if the game is not accepting 
-     *          players (not in lobby state) or if 
-     *          the max player count has been reached; 
-     *          true otherwise
+     * 
+     * @returns NOT_IN_LOBBY_STATE: if the game is
+     *          not in the lobby state
+     * 
+     *          MAX_PLAYERS_REACHED: if the game
+     *          has too many players
+     * 
+     *          ACTION_OK: if the player has been 
+     *          added
      */
-    addPlayer(user: User): boolean {
+    addPlayer(user: User): GameStatusCode {
         if (this.state !== GameState.Lobby) {
-            return false;
+            return GameStatusCode.NOT_IN_LOBBY_STATE;
+        }
+
+        if (this.players.length + 1 > this.maxPlayers) {
+            return GameStatusCode.MAX_PLAYERS_REACHED;
         }
 
         this.players.push(new Player(user));
 
         this.event('playerJoinedGame');
-        return true;
+        return null;
     }
 
     /**
@@ -190,6 +199,13 @@ export class Game extends EventEmitter {
     }
 
     /**
+     * Returns the number of players currently in the game
+     */
+    getPlayerCount(): number {
+        return this.players.length;
+    }
+
+    /**
      * Remove a player from the game by user id. If 
      * the removed player is the current judge, the 
      * next player in index order becomes the judge.
@@ -197,13 +213,17 @@ export class Game extends EventEmitter {
      * Fires hostLeftGame or playerLeftGame event.
      * 
      * @param id the id of the user to remove
-     * @returns false if the user with that id is not in 
-     *          the game, true otherwise
+     * 
+     * @returns NOT_IN_GAME: if the player is not
+     *          in the game
+     * 
+     *          ACTION_OK: if the player has been
+     *          removed
      */
-    removePlayer(id: string): boolean {
+    removePlayer(id: string): GameStatusCode {
         const idx = this.players.findIndex(p => p.getUser().id === id);
         if (idx === -1) {
-            return false;
+            return GameStatusCode.NOT_IN_GAME;
         }
 
         if (this.players.length === 1) {
@@ -219,12 +239,13 @@ export class Game extends EventEmitter {
         }
 
         if (this.getHost().id === id) {
+            this.state = GameState.Abandoned;
             this.event('hostLeftGame');
         } else {
             this.event('playerLeftGame')
         }
 
-        return true;
+        return GameStatusCode.ACTION_OK;
     }
 
     /**
@@ -257,6 +278,14 @@ export class Game extends EventEmitter {
     }
 
     /**
+     * Returns the number of specators currently spectating
+     * the game
+     */
+    getSpectatorCount(): number {
+        return this.spectators.length;
+    }
+
+    /**
      * Remove a spectator from the game by user id.
      * 
      * Fires spectatorLeftGame event.
@@ -285,7 +314,6 @@ export class Game extends EventEmitter {
     getState() {
         return this.state;
     }
-
 
     /**
      * Sets the current game state.
@@ -365,21 +393,21 @@ export class Game extends EventEmitter {
      * - Selected decks provide at least {@link MINIMUM_BLACK_CARDS} black cards 
      *   and {@link MINIMUM_WHITE_CARDS_PER_PLAYER} white cards per player.
      */
-    start(): GameErrorCode {
+    start(): GameStatusCode {
         if (this.state !== GameState.Lobby) {
-            return GameErrorCode.NOT_IN_LOBBY_STATE;
+            return GameStatusCode.NOT_IN_LOBBY_STATE;
         }
 
         if (this.players.length < 3) {
-            return GameErrorCode.NOT_ENOUGH_PLAYERS;
+            return GameStatusCode.NOT_ENOUGH_PLAYERS;
         }
 
         if (this.availableBlackCards.length < Game.MINIMUM_BLACK_CARDS) {
-            return GameErrorCode.NOT_ENOUGH_BLACK_CARDS;
+            return GameStatusCode.NOT_ENOUGH_BLACK_CARDS;
         }
 
         if (this.availableWhiteCards.length < (Game.MINIMUM_WHITE_CARDS_PER_PLAYER * this.players.length)) {
-            return GameErrorCode.NOT_ENOUGH_WHITE_CARDS;
+            return GameStatusCode.NOT_ENOUGH_WHITE_CARDS;
         }
 
         const initialJudgeIdx = Math.floor(Math.random() * (this.players.length - 1));

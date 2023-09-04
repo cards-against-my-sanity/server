@@ -48,7 +48,7 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
             user: session.user
         };
 
-        client.emit("connection_status", { status: "open", type: "user" })
+        client.emit("connection_status", { status: "open", type: "user" });
     }
 
     async handleDisconnect(client: Socket) {
