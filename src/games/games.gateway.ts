@@ -78,6 +78,76 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   /**
+   * Allows the host to start the game they
+   * are hosting. If the player is not hosting 
+   * a game, or the game is not currently in the 
+   * lobby state, or there are not enough players,
+   * or there are not enough black cards, or there
+   * are not enough white cards, nothing happens
+   * and the user receives an error message.
+   * 
+   * @param client the client
+   */
+  @SubscribeMessage("startGame")
+  @HasPermissions(Permission.StartGame)
+  async startGame(client: Socket) {
+    const game = this.service.getGameHostedBy(client.session.user);
+    if (!game) {
+      client.emit("gameNotFound");
+      return;
+    }
+
+    const startStatus = await this.service.startGame(game.getId());
+    if (startStatus != GameStatusCode.ACTION_OK) {
+      client.emit("gameNotStarted", { reason: startStatus.getMessage() });
+    }
+  }
+
+  @SubscribeMessage("stopGame")
+  @HasPermissions(Permission.StopGame)
+  stopGame(client: Socket) {
+    const game = this.service.getGameHostedBy(client.session.user);
+    if (!game) {
+      client.emit("gameNotFound");
+      return;
+    }
+
+    game.stop();
+  }
+
+  /**
+   * Allows the host to add card decks to the
+   * game while it is in lobby state. If the
+   * player is not hosting a game, or the game
+   * is not currently in the lobby state, or
+   * the deck does not exist, nothing happens
+   * and the user receives an error message.
+   * 
+   * @param client the client
+   */
+  @SubscribeMessage("addDeckToGame")
+  @HasPermissions(Permission.ChangeGameSettings)
+  async addDeckToGame(client: Socket, @MessageBody('deck_id') deckId: string) {
+    const game = this.service.getGameHostedBy(client.session.user);
+    if (!game) {
+      client.emit("gameNotFound");
+      return;
+    }
+
+    if (!game.canChangeSettings()) {
+      client.emit("gameInProgress");
+      return;
+    }
+
+    const status = await this.service.addDeckToGame(game.getId(), deckId);
+    if (status !== GameStatusCode.ACTION_OK) {
+      client.emit("deckNotAdded", { reason: status.getMessage() });
+    } else {
+      client.emit("deckAdded");
+    }
+  }
+
+  /**
    * Allows the host to change game settings
    * while the game is in lobby state. If the
    * player is not hosting a game, or the game

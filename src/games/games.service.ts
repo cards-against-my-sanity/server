@@ -4,13 +4,16 @@ import { DecksService } from 'src/decks/decks.service';
 import { User } from 'src/users/entities/user.entity';
 import { EventEmitter } from 'stream';
 import { GameStatusCode } from './game-status-code';
+import { CardsService } from 'src/cards/cards.service';
+import { CardType } from 'src/cards/card-type.enum';
 
 @Injectable()
 export class GamesService extends EventEmitter {
     private games: Game[] = [];
 
     constructor(
-        private readonly decksService: DecksService
+        private readonly decksService: DecksService,
+        private readonly cardsService: CardsService
     ) {
         super();
     }
@@ -49,6 +52,46 @@ export class GamesService extends EventEmitter {
     }
 
     /**
+     * Attempts to start the game specified by the given
+     * id. Loads the cards for the decks that have been
+     * added to the game.
+     * 
+     * @param id the game id to start
+     * 
+     * @returns UNKNOWN_GAME: if the game could not be found.
+     * 
+     *          NOT_IN_LOBBY_STATE: if the game is not in the lobby state
+     * 
+     *          NOT_ENOUGH_PLAYERS: if there are not at least 3 players
+     * 
+     *          NOT_ENOUGH_BLACK_CARDS: if there are not at least 50 black cards
+     * 
+     *          NOT_ENOUGH_WHITE_CARDS: if there are not at least 20 * PlayerCount white cards
+     * 
+     *          ACTION_OK: if the game has been started
+     */
+    async startGame(id: string): Promise<GameStatusCode> {
+        const game = this.getGame(id);
+        if (!game) {
+            return GameStatusCode.UNKNOWN_GAME;
+        }
+
+        const { black, white } = (await Promise.all(game.getDecks()
+            .map(async (deck) => ({
+                black: await this.cardsService.findAllBlackCardsInDeck(deck.id),
+                white: await this.cardsService.findAllWhiteCardsInDeck(deck.id)
+            }))))
+            .reduce((acc, cur) => ({
+                black: acc.black.concat(cur.black),
+                white: acc.white.concat(cur.white)
+            }));
+
+        game.setCards(black, white);
+
+        return game.start();
+    }
+
+    /**
      * Gets the currently hosted game IDs
      * 
      * @returns the game IDs
@@ -83,21 +126,28 @@ export class GamesService extends EventEmitter {
      * 
      * @param gameId the id of the game to add the deck to
      * @param deckId the id of the deck to add to the game
-     * @returns true if the deck was added, false if
-     *          the game did not exist or the deck did
-     *          not exist or the game was not in the
-     *          Lobby state or the deck was already added
-     *          to the game
+     * 
+     * @returns UNKNOWN_GAME: if the game could not be found
+     * 
+     *          UNKNOWN_DECK: if the deck could not be found
+     * 
+     *          NOT_IN_LOBBY_STATE: if the game is not in
+     *          the lobby state
+     * 
+     *          DECK_ALREADY_ADDED: if the deck was already
+     *          added to this game
+     * 
+     *          ACTION_OK: if the deck was added successfully
      */
-    async addDeckToGame(gameId: string, deckId: string): Promise<boolean> {
-        const game = this.games.find(g => g.getId() === gameId);
+    async addDeckToGame(gameId: string, deckId: string): Promise<GameStatusCode> {
+        const game = this.getGame(gameId);
         if (!game) {
-            return false;
+            return GameStatusCode.UNKNOWN_GAME;
         }
 
         const deck = await this.decksService.findOne(deckId);
         if (!deck) {
-            return false;
+            return GameStatusCode.UNKNOWN_DECK;
         }
 
         return game.addDeck(deck);
@@ -128,7 +178,7 @@ export class GamesService extends EventEmitter {
      *          ACTION_OK: if the player has been added
      */
     addPlayerToGame(gameId: string, user: User): GameStatusCode {
-        const game = this.games.find(g => g.getId() === gameId);
+        const game = this.getGame(gameId)
         if (!game) {
             return GameStatusCode.UNKNOWN_GAME;
         }
@@ -161,7 +211,7 @@ export class GamesService extends EventEmitter {
      *          removed as player
      */
     removePlayerFromGame(gameId: string, userId: string): GameStatusCode {
-        const game = this.games.find(g => g.getId() === gameId);
+        const game = this.getGame(gameId);
         if (!game) {
             return GameStatusCode.UNKNOWN_GAME;
         }
@@ -190,7 +240,7 @@ export class GamesService extends EventEmitter {
      *          ACTION_OK: if the player has been added
      */
     addSpectatorToGame(gameId: string, user: User): GameStatusCode {
-        const game = this.games.find(g => g.getId() === gameId);
+        const game = this.getGame(gameId);
         if (!game) {
             return GameStatusCode.UNKNOWN_GAME;
         }
@@ -223,7 +273,7 @@ export class GamesService extends EventEmitter {
      *          removed as player
      */
     removeSpectatorFromGame(gameId: string, userId: string): GameStatusCode {
-        const game = this.games.find(g => g.getId() === gameId);
+        const game = this.getGame(gameId);
         if (!game) {
             return GameStatusCode.UNKNOWN_GAME;
         }

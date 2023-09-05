@@ -70,18 +70,26 @@ export class Game extends EventEmitter {
      * game.
      * 
      * @param deckId the id of the deck to add to the game
+     * 
+     * @returns NOT_IN_LOBBY_STATE: if the game is not in
+     *          the lobby state
+     * 
+     *          DECK_ALREADY_ADDED: if the deck was already
+     *          added to this game
+     * 
+     *          ACTION_OK: if the deck was added successfully
      */
-    addDeck(deck: Deck): boolean {
+    addDeck(deck: Deck): GameStatusCode {
         if (this.state !== GameState.Lobby) {
-            return false;
+            return GameStatusCode.NOT_IN_LOBBY_STATE;
         }
 
         if (this.decks.some(d => d.id === deck.id)) {
-            return false;
+            return GameStatusCode.DECK_ALREADY_ADDED;
         }
 
         this.decks.push(deck);
-        return true;
+        return GameStatusCode.ACTION_OK;
     }
 
     /**
@@ -418,6 +426,16 @@ export class Game extends EventEmitter {
      * - Game has at least three players.
      * - Selected decks provide at least {@link MINIMUM_BLACK_CARDS} black cards 
      *   and {@link MINIMUM_WHITE_CARDS_PER_PLAYER} white cards per player.
+     * 
+     * @returns NOT_IN_LOBBY_STATE: if the game is not in the lobby state
+     * 
+     *          NOT_ENOUGH_PLAYERS: if there are not at least 3 players
+     * 
+     *          NOT_ENOUGH_BLACK_CARDS: if there are not at least 50 black cards
+     * 
+     *          NOT_ENOUGH_WHITE_CARDS: if there are not at least 20 * PlayerCount white cards
+     * 
+     *          ACTION_OK: if the game has been started
      */
     start(): GameStatusCode {
         if (this.state !== GameState.Lobby) {
@@ -441,6 +459,26 @@ export class Game extends EventEmitter {
 
         this.beginNextRound();
 
+        return GameStatusCode.ACTION_OK;
+    }
+
+    /**
+     * Stops the game by forcing it into the reset state.
+     * The game will flow through reset back into the
+     * lobby state.
+     * 
+     * @returns NOT_IN_PROGRESS: if the game is already in 
+     *          the lobby state
+     * 
+     *          ACTION_OK: if the game has been forced into
+     *          the reset state
+     */
+    stop(): GameStatusCode {
+        if (this.state === GameState.Lobby) {
+            return GameStatusCode.NOT_IN_PROGRESS;
+        }
+
+        this.resetState();
         return GameStatusCode.ACTION_OK;
     }
 

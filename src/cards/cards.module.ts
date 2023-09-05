@@ -14,6 +14,7 @@ import { BlackCard } from './entities/black-card.entity';
     DecksModule
   ],
   controllers: [CardsController],
-  providers: [CardsService]
+  providers: [CardsService],
+  exports: [CardsService]
 })
 export class CardsModule {}

@@ -40,14 +40,20 @@ export class CardsService {
     }
   }
 
-  findAllInDeck(deckId: string, card_type: CardType, offset: number, limit: number) {
-    const criterion = { deck: { id: deckId }};
-    switch (card_type) {
-      case CardType.Black:
-        return this.blackCardRepository.find({ where: criterion, skip: offset, take: limit });
-      case CardType.White:
-        return this.whiteCardRepository.find({ where: criterion, skip: offset, take: limit });
-    }
+  findAllWhiteCardsInDeck(deckId: string): Promise<WhiteCard[]> {
+    return this.whiteCardRepository.find({ where: { deck: { id: deckId }}});
+  }
+
+  findSomeWhiteCardsInDeck(deckId: string, offset: number, limit: number): Promise<WhiteCard[]> {
+    return this.whiteCardRepository.find({ where: { deck: { id: deckId }}, skip: offset, take: limit });
+  }
+
+  findAllBlackCardsInDeck(deckId: string): Promise<BlackCard[]> {
+    return this.blackCardRepository.find({ where: { deck: { id: deckId }}});
+  }
+
+  findSomeBlackCardsInDeck(deckId: string, offset: number, limit: number): Promise<WhiteCard[]> {
+    return this.blackCardRepository.find({ where: { deck: { id: deckId }}, skip: offset, take: limit });
   }
 
   findOne(id: string, card_type: CardType) {
