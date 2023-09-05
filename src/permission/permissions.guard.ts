@@ -3,7 +3,6 @@ import { Reflector } from '@nestjs/core';
 import { Permission } from 'src/permission/permission.class';
 import { PERMISSIONS_KEY } from './permissions.decorator';
 import { PermissionService } from 'src/permission/permission.service';
-import { PermissionUtil } from './permission.util';
 import { User } from 'src/users/entities/user.entity';
 import { Socket } from 'socket.io';
 import { Request } from 'express';

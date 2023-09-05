@@ -12,7 +12,6 @@ import { AppGateway } from './app.gateway';
 import { SessionModule } from './session/session.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { GamesModule } from './games/games.module';
-import { RedisModule } from '@songkeys/nestjs-redis';
 import { JwtAccessTokenGuard } from './auth/jwt-access-token/jwt-access-token.guard';
 
 @Module({
@@ -25,16 +24,6 @@ import { JwtAccessTokenGuard } from './auth/jwt-access-token/jwt-access-token.gu
     SessionModule,
     ScheduleModule.forRoot(),
     ConfigModule.forRoot(),
-    RedisModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        config: {
-          host: configService.get<string>('REDIS_HOST'),
-          port: parseInt(configService.get<string>('REDIS_PORT'))
-        }
-      })
-    }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

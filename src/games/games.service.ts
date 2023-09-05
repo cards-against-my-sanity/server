@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Game } from './game.entity';
 import { DecksService } from 'src/decks/decks.service';
-import { CardsService } from 'src/cards/cards.service';
 import { User } from 'src/users/entities/user.entity';
 import { EventEmitter } from 'stream';
 import { GameStatusCode } from './game-status-code';
@@ -11,8 +10,7 @@ export class GamesService extends EventEmitter {
     private games: Game[] = [];
 
     constructor(
-        private readonly decksService: DecksService,
-        private readonly cardsService: CardsService
+        private readonly decksService: DecksService
     ) {
         super();
     }

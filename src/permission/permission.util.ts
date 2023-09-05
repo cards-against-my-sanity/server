@@ -7,10 +7,9 @@ export class PermissionUtil {
         const permissionObj = new UserPermission();
         const permissions = [            
             Permission.ViewPublicGameHistory, Permission.ViewDecks, Permission.ViewDeck, Permission.ViewCards, 
-            Permission.ViewCard, Permission.ViewGames, Permission.ViewGame, Permission.JoinGame, Permission.CreateGame, 
-            Permission.ChangeGameSettings, Permission.InviteToGame, Permission.StartGame, Permission.StopGame, 
-            Permission.KickUserFromGame, Permission.ReportContent, Permission.ChangeUserDetails, Permission.SendChat, 
-            Permission.UseCustomWriteIn
+            Permission.ViewCard, Permission.JoinGame, Permission.CreateGame, Permission.ChangeGameSettings, 
+            Permission.InviteToGame, Permission.StartGame, Permission.StopGame, Permission.KickUserFromGame, 
+            Permission.ReportContent, Permission.ChangeUserDetails, Permission.SendChat, Permission.UseCustomWriteIn
         ];
         
         permissions.forEach(permission => {
