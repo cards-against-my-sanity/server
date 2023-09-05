@@ -673,7 +673,7 @@ export class Game extends EventEmitter {
             return GameStatusCode.NOT_IN_JUDGING_STATE;
         }
 
-        if (player.getScore() !== PlayerState.Judge) {
+        if (player.getState() !== PlayerState.Judge) {
             return GameStatusCode.IS_NOT_THE_JUDGE;
         }
 
