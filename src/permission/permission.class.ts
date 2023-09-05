@@ -7,23 +7,18 @@ export class Permission {
     static readonly ViewPublicGameHistory = new Permission(PermissionCategory.Generic, 1 << 1);
     static readonly ViewAllGameHistory = new Permission(PermissionCategory.Generic, 1 << 2);
     static readonly ChangeUserDetails = new Permission(PermissionCategory.Generic, 1 << 3);
-    static readonly ViewDecks = new Permission(PermissionCategory.Generic, 1 << 4);
-    static readonly ViewDeck = new Permission(PermissionCategory.Generic, 1 << 5);
-    static readonly ViewCards = new Permission(PermissionCategory.Generic, 1 << 6);
-    static readonly ViewCard = new Permission(PermissionCategory.Gameplay, 1 << 7);
 
     // gameplay permissions
     static readonly AllGameplay = new Permission(PermissionCategory.Gameplay, 0x7FFFFFFF);
-    static readonly RegularGameplay = new Permission(PermissionCategory.Gameplay, 1 << 0);
-    static readonly CreateGame = new Permission(PermissionCategory.Gameplay, 1 << 3);
-    static readonly ChangeGameSettings = new Permission(PermissionCategory.Gameplay, 1 << 4);
+    static readonly CreateGame = new Permission(PermissionCategory.Gameplay, 1 << 0);
+    static readonly ChangeGameSettings = new Permission(PermissionCategory.Gameplay, 1 << 1);
     static readonly JoinGame = new Permission(PermissionCategory.Gameplay, 1 << 2);
-    static readonly InviteToGame = new Permission(PermissionCategory.Gameplay, 1 << 5);
-    static readonly StartGame = new Permission(PermissionCategory.Gameplay, 1 << 6);
-    static readonly StopGame = new Permission(PermissionCategory.Gameplay, 1 << 7);
-    static readonly KickUserFromGame = new Permission(PermissionCategory.Gameplay, 1 << 8);
-    static readonly SendChat = new Permission(PermissionCategory.Gameplay, 1 << 9);
-    static readonly UseCustomWriteIn = new Permission(PermissionCategory.Gameplay, 1 << 10);
+    static readonly InviteToGame = new Permission(PermissionCategory.Gameplay, 1 << 3);
+    static readonly StartGame = new Permission(PermissionCategory.Gameplay, 1 << 4);
+    static readonly StopGame = new Permission(PermissionCategory.Gameplay, 1 << 5);
+    static readonly KickUserFromGame = new Permission(PermissionCategory.Gameplay, 1 << 6);
+    static readonly SendChat = new Permission(PermissionCategory.Gameplay, 1 << 7);
+    static readonly UseCustomWriteIn = new Permission(PermissionCategory.Gameplay, 1 << 8);
 
     // contributor permissions
     static readonly AllContributor = new Permission(PermissionCategory.Contributor, 0x7FFFFFFF);

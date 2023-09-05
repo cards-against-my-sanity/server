@@ -341,7 +341,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * @param gameId the game id receiving the judgement
    * @param winningUser the user who wins the round
    */
-  @SubscribeMessage("judgeCard")
+  @SubscribeMessage("judgeCards")
   @HasPermissions(Permission.JoinGame)
   judgeCards(@ConnectedSocket() client: Socket, @MessageBody("cards") cardIds: string[]) {
     const { user } = client.session;
