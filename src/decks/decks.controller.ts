@@ -10,13 +10,11 @@ export class DecksController {
     constructor(private readonly decksService: DecksService) {}
 
     @Get()
-    @HasPermissions(Permission.ViewDecks)
     findAll() {
       return this.decksService.findAll();
     }
 
     @Get(':id')
-    @HasPermissions(Permission.ViewDeck)
     async findOne(@Param('id') id: string) {
       const deck = await this.decksService.findOne(id);
       

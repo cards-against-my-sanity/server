@@ -24,11 +24,18 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     service.on('beginNextRound', this.handleBeginNextRound);
     service.on('dealCardToPlayer', this.handleDealCardToPlayer);
     service.on('dealBlackCard', this.handleDealBlackCard);
+    service.on('roundWinner', this.handleRoundWinner);
     service.on('gameWinner', this.handleGameWinner);
     service.on('resetWarning', this.handleResetWarning);
     service.on('illegalStateTransition', this.handleIllegalStateTransition);
     service.on('stateTransition', this.handleStateTransition);
   }
+
+  /**
+   * =========================================================
+   * Message handlers
+   * =========================================================
+   */
 
   /**
    * Lists all games and their details.
@@ -275,6 +282,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * @param message the message to send
    */
   @SubscribeMessage("sendGameChat")
+  @HasPermissions(Permission.SendChat)
   sendGameChat(@ConnectedSocket() client: Socket, @MessageBody("message") message: string) {
     const { user } = client.session;
 
@@ -305,6 +313,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * @param cardIds the card ids to put into play
    */
   @SubscribeMessage("playCards")
+  @HasPermissions(Permission.JoinGame)
   playCards(@ConnectedSocket() client: Socket, @MessageBody("cards") cardIds: string[]) {
     const { user } = client.session;
 
@@ -333,9 +342,27 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * @param winningUser the user who wins the round
    */
   @SubscribeMessage("judgeCard")
-  judgeCards(@ConnectedSocket() client: Socket, @MessageBody("game_id") gameId: string, @MessageBody("winner") winner: string) {
+  @HasPermissions(Permission.JoinGame)
+  judgeCards(@ConnectedSocket() client: Socket, @MessageBody("cards") cardIds: string[]) {
+    const { user } = client.session;
 
+    const game = this.service.getGames().find(g => g.hasPlayer(user.id));
+    if (!game) {
+      client.emit("gameNotFound");
+      return;
+    }
+
+    const status = game.judgeCards(game.getPlayer(user.id), cardIds);
+    if (status !== GameStatusCode.ACTION_OK) {
+      client.emit("cardsNotJudged", { reason: status.getMessage() });
+    }
   }
+
+  /**
+   * =========================================================
+   * Connection handlers
+   * =========================================================
+   */
 
   /**
    * Handles a client connecting to the websocket server.
@@ -466,7 +493,21 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
   handleDealBlackCard(payload: Record<string, any>) {
     this.server.to(GameChannel.GAME_ROOM(payload.gameId))
       .emit("dealBlackCard", payload.card);
-  }  
+  }
+
+  /**
+   * Handles when there is a round winner.
+   * 
+   * @param payload the round winner payload
+   */
+  handleRoundWinner(payload: Record<string, any>) {
+    this.server.to(GameChannel.GAME_ROOM(payload.gameId))
+      .emit("roundWinner", { 
+        id: payload.userId, 
+        nickname: payload.nickname, 
+        winningCards: payload.winningCards 
+      });
+  }
 
   /**
    * Handles when there is a game winner.

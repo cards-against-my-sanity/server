@@ -686,6 +686,12 @@ export class Game extends EventEmitter {
 
         winner[0].incrementScore();
 
+        this.event('roundWinner', { 
+            userId: winner[0].getUser().id, 
+            nickname: winner[0].getUser().nickname,
+            winningCards: winner[1]
+        })
+
         if (this.thereIsAGameWinner()) {
             this.winState();
         } else {

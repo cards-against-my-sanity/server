@@ -18,7 +18,6 @@ export class CardsController {
     ) {}
 
     @Get()
-    @HasPermissions(Permission.ViewCards)
     async findAll(@RequiredQuery('deck') deck: string, @RequiredQuery("card_type") cardType: CardType, @RequiredQuery('per_page') perPage: number, @RequiredQuery('page') page: number) {
       if (!(await this.decksService.findOne(deck))) {
         throw new NotFoundException("unknown deck");
@@ -50,7 +49,6 @@ export class CardsController {
     }
 
     @Get(':id')
-    @HasPermissions(Permission.ViewCard)
     findOne(@Param('id') id: string, @RequiredQuery("card_type") cardType: CardType) {
       return this.cardsService.findOne(id, cardType);
     }
