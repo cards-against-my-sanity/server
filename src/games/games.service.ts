@@ -4,7 +4,7 @@ import { DecksService } from 'src/decks/decks.service';
 import { CardsService } from 'src/cards/cards.service';
 import { User } from 'src/users/entities/user.entity';
 import { EventEmitter } from 'stream';
-import { GameStatusCode } from './game-status-code.constants';
+import { GameStatusCode } from './game-status-code';
 
 @Injectable()
 export class GamesService extends EventEmitter {
@@ -34,11 +34,17 @@ export class GamesService extends EventEmitter {
         
         game.on('playerJoinedGame', this.forwardEvent);
         game.on('playerLeftGame', this.forwardEvent);
-        game.on('hostLeftGame', this.forwardEvent);
         game.on('spectatorJoinedGame', this.forwardEvent);
         game.on('spectatorLeftGame', this.forwardEvent);
         game.on('gameStateChanged', this.forwardEvent);
         game.on('gameStarted', this.forwardEvent);
+        game.on('beginNextRound', this.forwardEvent);
+        game.on('dealCardToPlayer', this.forwardEvent);
+        game.on('dealBlackCard', this.forwardEvent);
+        game.on('gameWinner', this.forwardEvent);
+        game.on('resetWarning', this.forwardEvent);
+        game.on('illegalStateTransition', this.forwardEvent);
+        game.on('stateTransition', this.forwardEvent);
         
         this.games.push(game);
         return game;

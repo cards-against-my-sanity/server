@@ -14,11 +14,10 @@ export class Permission {
 
     // gameplay permissions
     static readonly AllGameplay = new Permission(PermissionCategory.Gameplay, 0x7FFFFFFF);
-    static readonly ViewGames = new Permission(PermissionCategory.Gameplay, 1 << 0);
-    static readonly ViewGame = new Permission(PermissionCategory.Gameplay, 1 << 1);
-    static readonly JoinGame = new Permission(PermissionCategory.Gameplay, 1 << 2);
+    static readonly RegularGameplay = new Permission(PermissionCategory.Gameplay, 1 << 0);
     static readonly CreateGame = new Permission(PermissionCategory.Gameplay, 1 << 3);
     static readonly ChangeGameSettings = new Permission(PermissionCategory.Gameplay, 1 << 4);
+    static readonly JoinGame = new Permission(PermissionCategory.Gameplay, 1 << 2);
     static readonly InviteToGame = new Permission(PermissionCategory.Gameplay, 1 << 5);
     static readonly StartGame = new Permission(PermissionCategory.Gameplay, 1 << 6);
     static readonly StopGame = new Permission(PermissionCategory.Gameplay, 1 << 7);

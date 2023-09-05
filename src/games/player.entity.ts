@@ -4,11 +4,13 @@ import { WhiteCard } from "src/cards/entities/white-card.entity";
 
 export class Player {
     private state: PlayerState;
-    private cards: WhiteCard[];
+    private score: number;
+    private hand: WhiteCard[];
 
     constructor(private readonly user: User) {
         this.state = PlayerState.Player;
-        this.cards = [];
+        this.score = 0;
+        this.hand = [];
     }
 
     getUser(): User {
@@ -23,19 +25,41 @@ export class Player {
         this.state = state;
     }
 
+    getScore(): number {
+        return this.score;
+    }
+
+    incrementScore() {
+        this.score++;
+    }
+
+    setScore(score: number) {
+        this.score = score;
+    }
+
     getHand(): WhiteCard[] {
-        return this.cards;
+        return this.hand;
+    }
+
+    removeCardsFromHand(cardIds: string[]): WhiteCard[] {
+        const cards = this.hand.filter(c => cardIds.includes(c.id));
+        this.hand = this.hand.filter(c => !cardIds.includes(c.id));
+        return cards;
     }
 
     setHand(cards: WhiteCard[]) {
-        this.cards = cards;
+        this.hand = cards;
+    }
+
+    dealCards(cards: WhiteCard[]) {
+        cards.forEach(card => this.dealCard(card));
     }
 
     dealCard(card: WhiteCard) {
-        this.cards.push(card);
+        this.hand.push(card);
     }
 
     clearHand() {
-        this.cards.length = 0;
+        this.hand.length = 0;
     }
 }

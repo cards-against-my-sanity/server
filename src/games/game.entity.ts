@@ -5,38 +5,43 @@ import { v4 as uuidv4 } from 'uuid';
 import { WhiteCard } from "src/cards/entities/white-card.entity";
 import { BlackCard } from "src/cards/entities/black-card.entity";
 import { Deck } from "src/decks/entities/deck.entity";
-import { GameStatusCode } from "./game-status-code.constants";
+import { GameStatusCode } from "./game-status-code";
 import { EventEmitter } from "stream";
 import { User } from "src/users/entities/user.entity";
 import { Spectator } from "./spectator.entity";
+import { GameSettings } from "./game_settings";
+import { ArrayShuffler } from "src/util/array-shuffler";
 
 export class Game extends EventEmitter {
+    static readonly MINIMUM_PLAYERS = 3;
     static readonly MINIMUM_BLACK_CARDS = 50;
     static readonly MINIMUM_WHITE_CARDS_PER_PLAYER = 20;
 
     private readonly id: string;
-    private readonly decks: Deck[];
-    private readonly availableWhiteCards: WhiteCard[];
-    private readonly dealtWhiteCards: WhiteCard[];
-    private readonly availableBlackCards: BlackCard[];
-    private readonly dealtBlackCards: BlackCard[];
-    private players: Player[];
-    private spectators: Spectator[];
-    private state: GameState;
-    private maxScore: number = 6;
-    private maxPlayers: number = 10;
-    private maxSpectators: number = 10;
+
+    private readonly decks: Deck[] = [];
+
+    private readonly availableWhiteCards: WhiteCard[] = [];                     // available to draw
+    private readonly playedWhiteCards: Map<Player, WhiteCard[]> = new Map();    // played this round (ephemeral)
+    private readonly discardedWhiteCards: WhiteCard[] = [];                     // have already been played in a prior round
+
+    private currentBlackCard: BlackCard;                                        // now playing
+    private readonly availableBlackCards: BlackCard[] = [];                     // available to draw
+    private readonly discardedBlackCards: BlackCard[] = [];                     // have already been played
+
+    private readonly settings: GameSettings = new GameSettings();
+
+    private state: GameState = GameState.Lobby;
+    private players: Player[] = [];
+    private spectators: Spectator[] = [];
+    private roundNumber: number = 0;
 
     constructor(
         private host: User
     ) {
         super();
-
         this.id = uuidv4();
-
-        this.players = [
-            new Player(host)
-        ];
+        this.players.push(new Player(host));
     }
 
     /**
@@ -80,22 +85,6 @@ export class Game extends EventEmitter {
     }
 
     /**
-     * Clears all decks from this game, starting from 0.
-     * 
-     * Also clears the black and white cards from the 
-     * game as a side effect.
-     */
-    private clearDecks() {
-        this.decks.length = 0;
-        this.availableBlackCards.length = 0;
-        this.dealtBlackCards.length = 0;
-        this.availableWhiteCards.length = 0;
-        this.dealtWhiteCards.length = 0;
-
-        this.event('decksCleared');
-    }
-
-    /**
      * Gets the decks that have been added to the game.
      * 
      * @returns the decks in the game
@@ -114,11 +103,11 @@ export class Game extends EventEmitter {
      */
     setCards(blackCards: BlackCard[], whiteCards: WhiteCard[]) {
         this.availableBlackCards.length = 0;
-        this.dealtBlackCards.length = 0;
+        this.discardedBlackCards.length = 0;
         this.availableBlackCards.push(...blackCards);
-        
+
         this.availableWhiteCards.length = 0;
-        this.dealtWhiteCards.length = 0;
+        this.discardedWhiteCards.length = 0;
         this.availableWhiteCards.push(...whiteCards);
     }
 
@@ -128,7 +117,7 @@ export class Game extends EventEmitter {
      * @returns the black cards available
      */
     getAvailableBlackCards() {
-        return this.availableBlackCards;
+        return this.discardedBlackCards;
     }
 
     /**
@@ -136,8 +125,8 @@ export class Game extends EventEmitter {
      * 
      * @returns the black cards already dealt
      */
-    getDealtBlackCards() {
-        return this.dealtBlackCards;
+    getDiscardedBlackCards() {
+        return this.discardedBlackCards;
     }
 
     /**
@@ -154,8 +143,8 @@ export class Game extends EventEmitter {
      * 
      * @returns the black cards already dealt
      */
-    getDealtWhiteCards() {
-        return this.dealtWhiteCards;
+    getDiscardedWhiteCards() {
+        return this.discardedWhiteCards;
     }
 
     /**
@@ -179,7 +168,7 @@ export class Game extends EventEmitter {
             return GameStatusCode.NOT_IN_LOBBY_STATE;
         }
 
-        if (this.players.length + 1 > this.maxPlayers) {
+        if (this.players.length + 1 > this.settings.maxPlayers) {
             return GameStatusCode.MAX_PLAYERS_REACHED;
         }
 
@@ -189,13 +178,17 @@ export class Game extends EventEmitter {
         return null;
     }
 
+    getPlayer(id: string): Player {
+        return this.players.find(p => p.getUser().id);
+    }
+
     /**
      * Returns whether the given player is a member of this game
      * 
      * @param id the id of the User to check
      */
     hasPlayer(id: string): boolean {
-        return this.players.map(p => p.getUser().id).includes(id);
+        return this.getPlayer(id) !== undefined;
     }
 
     /**
@@ -230,20 +223,20 @@ export class Game extends EventEmitter {
             this.players.splice(0, 1);
         } else {
             const nextPlayerIndex = (idx + 1) % this.players.length;
-            
+
             if (this.players[idx].getState() === PlayerState.Judge) {
                 this.players[nextPlayerIndex].setState(PlayerState.Judge);
             }
-            
+
             this.players.splice(idx, 1);
         }
 
         if (this.getHost().id === id) {
             this.state = GameState.Abandoned;
-            this.event('hostLeftGame');
-        } else {
-            this.event('playerLeftGame')
+            this.event('stateTransition', { to: GameState.Abandoned });
         }
+
+        this.event('playerLeftGame', { userId: id })
 
         return GameStatusCode.ACTION_OK;
     }
@@ -261,7 +254,7 @@ export class Game extends EventEmitter {
      *          added
      */
     addSpectator(user: User): GameStatusCode {
-        if (this.spectators.length + 1 > this.maxSpectators) {
+        if (this.spectators.length + 1 > this.settings.maxSpectators) {
             return GameStatusCode.MAX_SPECTATORS_REACHED;
         }
 
@@ -335,13 +328,25 @@ export class Game extends EventEmitter {
     }
 
     /**
+     * Gets whether settings can be changed.
+     * Settings can only be changed when game
+     * state is Lobby.
+     * 
+     * @returns true if game state is Lobby, 
+     *          otherwise false
+     */
+    canChangeSettings(): boolean {
+        return this.state === GameState.Lobby;
+    }
+
+    /**
      * Gets the max score of the game. If this
      * score is reached, the game ends.
      * 
      * @returns the max score of the game
      */
     getMaxScore() {
-        return this.maxScore;
+        return this.settings.maxScore;
     }
 
     /**
@@ -349,8 +354,13 @@ export class Game extends EventEmitter {
      * 
      * @param maxScore the new max score
      */
-    setMaxScore(maxScore: number) {
-        this.maxScore = Math.floor(maxScore);
+    setMaxScore(maxScore: number): GameStatusCode {
+        if (this.state !== GameState.Lobby) {
+            return GameStatusCode.NOT_IN_LOBBY_STATE;
+        }
+
+        this.settings.maxScore = maxScore;
+        return GameStatusCode.ACTION_OK;
     }
 
     /**
@@ -359,7 +369,7 @@ export class Game extends EventEmitter {
      * @returns the max players for this game
      */
     getMaxPlayers() {
-        return this.maxPlayers;
+        return this.settings.maxPlayers;
     }
 
     /**
@@ -367,8 +377,13 @@ export class Game extends EventEmitter {
      * 
      * @param maxPlayers the new max players
      */
-    setMaxPlayers(maxPlayers: number) {
-        this.maxPlayers = Math.floor(maxPlayers);
+    setMaxPlayers(maxPlayers: number): GameStatusCode {
+        if (this.state !== GameState.Lobby) {
+            return GameStatusCode.NOT_IN_LOBBY_STATE;
+        }
+
+        this.settings.maxPlayers = maxPlayers;
+        return GameStatusCode.ACTION_OK;
     }
 
     /**
@@ -377,7 +392,7 @@ export class Game extends EventEmitter {
      * @returns the max spectators for this game
      */
     getMaxSpectators() {
-        return this.maxSpectators;
+        return this.settings.maxSpectators;
     }
 
     /**
@@ -385,8 +400,21 @@ export class Game extends EventEmitter {
      * 
      * @param maxSpectators the new max spectators
      */
-    setMaxSpectators(maxSpectators: number) {
-        this.maxSpectators = Math.floor(maxSpectators);
+    setMaxSpectators(maxSpectators: number): GameStatusCode {
+        if (this.state !== GameState.Lobby) {
+            return GameStatusCode.NOT_IN_LOBBY_STATE;
+        }
+
+        this.settings.maxSpectators = maxSpectators;
+        return GameStatusCode.ACTION_OK;
+    }
+
+    /**
+     * Gets the game settings object
+     * @returns the game settings
+     */
+    getSettings(): GameSettings {
+        return this.settings;
     }
 
     /**
@@ -408,7 +436,7 @@ export class Game extends EventEmitter {
             return GameStatusCode.NOT_IN_LOBBY_STATE;
         }
 
-        if (this.players.length < 3) {
+        if (this.players.length < Game.MINIMUM_PLAYERS) {
             return GameStatusCode.NOT_ENOUGH_PLAYERS;
         }
 
@@ -425,10 +453,25 @@ export class Game extends EventEmitter {
 
         this.event('gameStarted');
 
-        this.state = GameState.Dealing;
-        this.dealingState();
+        this.beginNextRound();
 
-        return null;
+        return GameStatusCode.ACTION_OK;
+    }
+
+    private beginNextRound() {
+        this.playedWhiteCards.forEach((cards) => {
+            cards.forEach(card => this.discardedWhiteCards.push(card));
+        });
+
+        this.playedWhiteCards.clear();
+
+        this.rotateJudge();
+
+        this.roundNumber++;
+
+        this.event("beginNextRound", { round: this.roundNumber });
+
+        this.dealingState();
     }
 
     /**
@@ -440,9 +483,58 @@ export class Game extends EventEmitter {
      * 
      * Transitions game from Dealing state to Playing state.
      */
-    dealingState() {
-        // TODO: write dealing
-        this.state = GameState.Playing;
+    private dealingState() {
+        if (this.state !== GameState.Lobby && this.state !== GameState.Judging) {
+            this.event("illegalStateTransition", { from: this.state, to: GameState.Dealing });
+            return;
+        }
+
+        this.state = GameState.Dealing;
+        this.event("stateTransition", { to: GameState.Dealing });
+
+        // discard last round's white cards (if any)
+        this.playedWhiteCards.forEach((cards) => this.discardedWhiteCards.push(...cards));
+        this.playedWhiteCards.clear();
+
+        // discard last round's black card (if any)
+        if (this.currentBlackCard) {
+            this.discardedBlackCards.push(this.currentBlackCard);
+            this.currentBlackCard = null;
+        }
+
+        // deal white cards to all players until everyone has 10 cards
+        this.players.forEach(player => {
+            while (player.getHand().length < 10) {
+                const nextWhiteCard = this.availableWhiteCards.shift();
+
+                if (!nextWhiteCard) {
+                    this.availableWhiteCards.push(...this.discardedWhiteCards);
+                    this.discardedWhiteCards.length = 0;
+                    ArrayShuffler.shuffle(this.availableWhiteCards);
+                    continue;
+                }
+
+                player.dealCard(nextWhiteCard);
+                this.event("dealCardToPlayer", { userId: player.getUser().id, card: nextWhiteCard });
+            }
+        });
+
+        // deal new black card
+        while (!this.currentBlackCard) {
+            const nextBlackCard = this.availableBlackCards.shift();
+
+            if (!nextBlackCard) {
+                this.availableBlackCards.push(...this.discardedBlackCards);
+                this.discardedBlackCards.length = 0;
+                ArrayShuffler.shuffle(this.availableBlackCards);
+                continue;
+            }
+
+            this.currentBlackCard = nextBlackCard;
+            this.event("dealBlackCard", { card: nextBlackCard });
+        }
+
+        this.playingState();
     }
 
     /**
@@ -453,11 +545,75 @@ export class Game extends EventEmitter {
      * Returns true if state processing succeeded and 
      * the game has moved to the next state. False otherwise.
      */
-    playingState() {
-        this.rotateJudge();
+    private playingState() {
+        if (this.state !== GameState.Dealing) {
+            this.event("illegalStateTransition", { from: this.state, to: GameState.Playing });
+            return;
+        }
 
-        // TODO: write playing
-        this.state = GameState.Judging;
+        this.state = GameState.Playing;
+        this.event("stateTransition", { to: GameState.Playing });
+
+        // And now we wait for players to play.
+    }
+
+    /**
+     * Plays the given cards on behalf of the player.
+     * Removes the cards from the player's deck and adds
+     * them to the played cards pile. If this is the
+     * last player who needed to play cards, the game
+     * moves on to the judging state.
+     * 
+     * @param player the player who has played cards
+     * @param cards the cards being played
+     * 
+     * @returns NOT_IN_PLAYING_STATE: if it is not the
+     *          right time for the player to play cards
+     * 
+     *          IS_THE_JUDGE: if the player is not playing
+     *          this round (is currently the judge)
+     * 
+     *          NOT_ENOUGH_CARDS: if the player is playing
+     *          fewer cards than the current black card's
+     *          "pick" value
+     * 
+     *          TOO_MANY_CARDS: if the player is playing
+     *          more cards than the current black card's
+     *          "pick" value
+     * 
+     *          INVALID_CARDS: if the cards are not in the
+     *          player's hand (tried to play random cards)
+     * 
+     *          ACTION_OK: if the cards have been played
+     */
+    playCards(player: Player, cards: string[]): GameStatusCode {
+        if (this.state !== GameState.Playing) {
+            return GameStatusCode.NOT_IN_PLAYING_STATE;
+        }
+
+        if (player.getState() === PlayerState.Judge) {
+            return GameStatusCode.IS_THE_JUDGE;
+        }
+        
+        if (cards.length < this.currentBlackCard.pick) {
+            return GameStatusCode.NOT_ENOUGH_CARDS;
+        }
+
+        if (cards.length > this.currentBlackCard.pick) {
+            return GameStatusCode.TOO_MANY_CARDS;
+        }
+
+        if (!cards.every(card => player.getHand().map(c => c.id).includes(card))) {
+            return GameStatusCode.INVALID_CARDS;
+        }
+
+        this.playedWhiteCards.set(player, player.removeCardsFromHand(cards));
+
+        if (this.playedWhiteCards.size === this.getPlayerCount()) {
+            this.judgingState();
+        }
+
+        return GameStatusCode.ACTION_OK;
     }
 
     /**
@@ -471,10 +627,103 @@ export class Game extends EventEmitter {
      * Returns true if state processing succeeded and 
      * the game has moved to the next state. False otherwise.
      */
-    judgingState() {
-        // TODO: write judging; fork in road
-        // next state either Win, or back to Dealing
-        this.state = GameState.Win;
+    private judgingState() {
+        if (this.state !== GameState.Playing) {
+            this.event("illegalStateTransition", { from: this.state, to: GameState.Judging });
+            return;
+        }
+
+        this.state = GameState.Judging;
+        this.event("stateTransition", { to: GameState.Judging });
+
+        // And now we wait for the judge to...judge.
+    }
+    
+    /**
+     * Judges the given cards to be the winning cards of the round.
+     * Performs a reverse lookup to identify the winning player and
+     * then increments their score. The game then evaluates if there
+     * is a winner (max score reached) or if a new round shall begin.
+     * If there is a winner, the game transitions to Win state.
+     * Otherwise, the game cleans up and transitions to Dealing state.
+     * 
+     * @param judgedCards the cards that have been judged
+     * 
+     * @returns NOT_IN_JUDGING_STATE: if it is not the 
+     *          right time for the player to judge cards
+     * 
+     *          IS_NOT_THE_JUDGE: if the player is not the
+     *          judge for this round
+     * 
+     *          NOT_ENOUGH_CARDS: if the player is judging
+     *          fewer cards than the current black card's
+     *          "pick" value
+     * 
+     *          TOO_MANY_CARDS: if the player is judging
+     *          more cards than the current black card's
+     *          "pick" value
+     * 
+     *          INVALID_CARDS: if the cards are not in the
+     *          played cards pile.
+     * 
+     *          ACTION_OK: if the cards have been played
+     */
+    judgeCards(player: Player, judgedCards: string[]): GameStatusCode {
+        if (this.state !== GameState.Judging) {
+            return GameStatusCode.NOT_IN_JUDGING_STATE;
+        }
+
+        if (player.getScore() !== PlayerState.Judge) {
+            return GameStatusCode.IS_NOT_THE_JUDGE;
+        }
+
+        if (judgedCards.length < this.currentBlackCard.pick) {
+            return GameStatusCode.NOT_ENOUGH_CARDS;
+        }
+
+        if (judgedCards.length > this.currentBlackCard.pick) {
+            return GameStatusCode.TOO_MANY_CARDS;
+        }
+
+        const winner = [...this.playedWhiteCards].find(
+            ([, playedCards]) => playedCards
+                .map(c => c.id)
+                .every(c => judgedCards.includes(c))
+        );
+
+        if (!winner) {
+            return GameStatusCode.INVALID_CARDS;
+        }
+
+        winner[0].incrementScore();
+
+        if (this.thereIsAGameWinner()) {
+            this.winState();
+        } else {
+            this.dealingState();
+        }
+
+        return GameStatusCode.ACTION_OK;
+    }
+
+    /**
+     * Gets the winner of the game, if any, by pulling the
+     * first player that has a score of {@link getMaxScore}.
+     * 
+     * @returns the winning player or null
+     */
+    private getGameWinner(): Player {
+        return this.players.find(p => p.getScore() === this.settings.maxScore);
+    }
+
+    /**
+     * Determines if there is a winning player based on the
+     * return value of {@link getGameWinner}.
+     * 
+     * @returns true or false
+     */
+    private thereIsAGameWinner(): boolean {
+        return !!this.getGameWinner();
     }
 
     /**
@@ -485,9 +734,21 @@ export class Game extends EventEmitter {
      * This state is transient and will always move 
      * to the next state.
      */
-    winState() {
-        // TODO: write win
-        this.state = GameState.Reset;
+    private winState() {
+        if (this.state !== GameState.Judging) {
+            this.event("illegalStateTransition", { from: this.state, to: GameState.Win });
+            return;
+        }
+
+        this.state = GameState.Win;
+        this.event("stateTransition", { to: GameState.Win });
+
+        const winner = this.getGameWinner();
+        this.event("gameWinner", { userId: winner.getUser().id, nickname: winner.getUser().nickname });
+
+        this.event("resetWarning", { resetInSeconds: 15 });
+
+        setTimeout(() => this.resetState, 15);
     }
 
     /**
@@ -497,9 +758,38 @@ export class Game extends EventEmitter {
      * This state is transient and will always move 
      * to the next state.
      */
-    resetState() {
-        // TODO: write reset
+    private resetState() {
+        this.state = GameState.Reset;
+        this.event("stateTransition", { to: GameState.Reset });
+
+        if (this.currentBlackCard) {
+            this.availableBlackCards.push(this.currentBlackCard);
+            this.currentBlackCard = undefined;
+        }
+
+        this.discardedBlackCards.forEach(c => this.availableBlackCards.push(c));
+        this.discardedBlackCards.length = 0;
+
+        ArrayShuffler.shuffle(this.availableBlackCards);
+
+        this.playedWhiteCards.forEach(c => c.forEach(c2 => this.availableWhiteCards.push(c2)));
+        this.playedWhiteCards.clear();
+
+        this.discardedWhiteCards.forEach(c => this.availableWhiteCards.push(c));
+        this.discardedWhiteCards.length = 0;
+
+        this.players.forEach(p => {
+            p.getHand().forEach(c => this.availableWhiteCards.push(c));
+            p.clearHand();
+            p.setScore(0);
+        });
+
+        ArrayShuffler.shuffle(this.availableWhiteCards);
+
+        this.roundNumber = 0;
+
         this.state = GameState.Lobby;
+        this.event("stateTransition", { to: GameState.Lobby });
     }
 
     /**
@@ -514,7 +804,7 @@ export class Game extends EventEmitter {
      * If the current game state is not Playing, 
      * no action occurs.
      */
-    rotateJudge(): void {
+    private rotateJudge(): void {
         if (this.state !== GameState.Playing) {
             return;
         }
@@ -535,9 +825,9 @@ export class Game extends EventEmitter {
      */
     private event(name: string, payload?: Record<string, any>) {
         if (payload) {
-            this.emit(name, { ...payload, name, id: this.id });
+            this.emit(name, { ...payload, name, gameId: this.id });
         } else {
-            this.emit(name, { name, id: this.id });
+            this.emit(name, { name, gameId: this.id });
         }
     }
 }

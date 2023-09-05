@@ -6,11 +6,10 @@ export class GameSerializer {
             id: game.getId(),
             host: game.getHost().nickname,
             decks: game.getDecks(),
+            state: game.getState(),
+            settings: game.getSettings(),
             playerCount: game.getPlayerCount(),
-            maxPlayers: game.getMaxPlayers(),
-            spectatorCount: game.getSpectatorCount(),
-            maxSpectators: game.getMaxSpectators(),
-            state: game.getState()
+            spectatorCount: game.getSpectatorCount()
         };
     }
 }
