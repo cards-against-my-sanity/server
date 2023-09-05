@@ -21,8 +21,6 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     service.on('playerLeftGame', this.handlePlayerLeftGame);
     service.on('spectatorJoinedGame', this.handleSpectatorJoinedGame);
     service.on('spectatorLeftGame', this.handleSpectatorLeftGame);
-    service.on('gameStateChanged', this.handleGameStateChanged);
-    service.on('gameStarted', this.handleGameStarted);
     service.on('beginNextRound', this.handleBeginNextRound);
     service.on('dealCardToPlayer', this.handleDealCardToPlayer);
     service.on('dealBlackCard', this.handleDealBlackCard);
@@ -417,7 +415,11 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * @param payload the game and spectator information
    */
   private handleSpectatorJoinedGame(payload: Record<string, any>) {
-    throw new Error('Method not implemented.');
+    this.server.to(GameChannel.GAME_ROOM(payload.gameId))
+      .emit("spectatorJoined", { id: payload.userId, nickname: payload.nickname });
+
+    this.server.to(GameChannel.GAME_BROWSER)
+      .emit("gameInfoUpdate", { gameId: payload.gameId, type: "spectatorCountIncrement" });
   }
 
   /**
@@ -426,25 +428,11 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * @param payload the game and player information
    */
   private handleSpectatorLeftGame(payload: Record<string, any>) {
-    throw new Error('Method not implemented.');
-  }
+    this.server.to(GameChannel.GAME_ROOM(payload.gameId))
+      .emit("spectatorLeft", { id: payload.userId, nickname: payload.nickname });
 
-  /**
-   * Handles a change to the game state.
-   * 
-   * @param payload the game information
-   */
-  private handleGameStateChanged(payload: Record<string, any>) {
-    throw new Error('Method not implemented.');
-  }
-
-  /**
-   * Handles a game starting.
-   * 
-   * @param payload the game information
-   */
-  private handleGameStarted(payload: Record<string, any>) {
-    throw new Error('Method not implemented.');
+    this.server.to(GameChannel.GAME_BROWSER)
+      .emit("gameInfoUpdate", { gameId: payload.gameId, type: "spectatorCountDecrement" });
   }
 
   /**
@@ -453,7 +441,11 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * @param payload the new round information
    */
   handleBeginNextRound(payload: Record<string, any>) {
-    throw new Error('Method not implemented.');
+    this.server.to(GameChannel.GAME_ROOM(payload.gameId))
+      .emit("beginNextRound", { roundNumber: payload.roundNumber });
+
+    this.server.to(GameChannel.GAME_BROWSER)
+      .emit("gameInfoUpdate", { gameId: payload.gameId, type: "roundNumberIncrement" });
   }
   
   /**
@@ -462,7 +454,8 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * @param payload the white card payload
    */
   handleDealCardToPlayer(payload: Record<string, any>) {
-    throw new Error('Method not implemented.');
+    this.server.to(GameChannel.GAME_USER_ROOM(payload.gameId, payload.userId))
+      .emit("dealCard", payload.card);
   }
 
   /**
@@ -471,7 +464,8 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * @param payload the black card payload
    */
   handleDealBlackCard(payload: Record<string, any>) {
-    throw new Error('Method not implemented.');
+    this.server.to(GameChannel.GAME_ROOM(payload.gameId))
+      .emit("dealBlackCard", payload.card);
   }  
 
   /**
@@ -480,7 +474,8 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * @param payload the game winner payload
    */
   handleGameWinner(payload: Record<string, any>) {
-    throw new Error('Method not implemented.');
+    this.server.to(GameChannel.GAME_ROOM(payload.gameId))
+      .emit("gameWinner", { id: payload.userId, nickname: payload.nickname });
   }
 
   /**
@@ -490,19 +485,21 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * @param payload the reset warning payload
    */
   handleResetWarning(payload: Record<string, any>) {
-    throw new Error('Method not implemented.');
+    this.server.to(GameChannel.GAME_ROOM(payload.gameId))
+      .emit("resetWarning", { resetInSeconds: payload.resetInSeconds });
   }
 
   /**
    * Handles when an illegal state transition occurs.
-   * When this happens, the game is killed. Notifies
-   * the frontends to send their players back to 
-   * game browser.
+   * When this happens, the game is reset. This notification
+   * serves to inform users about what is happening and why
+   * the game has been reset.
    * 
    * @param payload the illegal state transition information
    */
   handleIllegalStateTransition(payload: Record<string, any>) {
-    throw new Error('Method not implemented.');
+    this.server.to(GameChannel.GAME_ROOM(payload.id))
+      .emit("illegalStateTransition", { from: payload.from, to: payload.to });
   }
   
   /**
@@ -513,6 +510,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * @param payload the state transition payload
    */
   handleStateTransition(payload: Record<string, any>) {
-    throw new Error('Method not implemented.');
+    this.server.to(GameChannel.GAME_ROOM(payload.id))
+      .emit("stateTransition", { to: payload.to });
   }
 }

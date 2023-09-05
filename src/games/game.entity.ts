@@ -316,18 +316,6 @@ export class Game extends EventEmitter {
     }
 
     /**
-     * Sets the current game state.
-     * 
-     * Fires gameStateChanged event.
-     * 
-     * @param state the new game state
-     */
-    setState(state: GameState) {
-        this.state = state;
-        this.event('gameStateChanged', { state });
-    }
-
-    /**
      * Gets whether settings can be changed.
      * Settings can only be changed when game
      * state is Lobby.
@@ -451,8 +439,6 @@ export class Game extends EventEmitter {
         const initialJudgeIdx = Math.floor(Math.random() * (this.players.length - 1));
         this.players[initialJudgeIdx].setState(PlayerState.Judge);
 
-        this.event('gameStarted');
-
         this.beginNextRound();
 
         return GameStatusCode.ACTION_OK;
@@ -486,6 +472,7 @@ export class Game extends EventEmitter {
     private dealingState() {
         if (this.state !== GameState.Lobby && this.state !== GameState.Judging) {
             this.event("illegalStateTransition", { from: this.state, to: GameState.Dealing });
+            this.resetState();
             return;
         }
 
@@ -548,6 +535,7 @@ export class Game extends EventEmitter {
     private playingState() {
         if (this.state !== GameState.Dealing) {
             this.event("illegalStateTransition", { from: this.state, to: GameState.Playing });
+            this.resetState();
             return;
         }
 
@@ -630,6 +618,7 @@ export class Game extends EventEmitter {
     private judgingState() {
         if (this.state !== GameState.Playing) {
             this.event("illegalStateTransition", { from: this.state, to: GameState.Judging });
+            this.resetState();
             return;
         }
 
@@ -737,6 +726,7 @@ export class Game extends EventEmitter {
     private winState() {
         if (this.state !== GameState.Judging) {
             this.event("illegalStateTransition", { from: this.state, to: GameState.Win });
+            this.resetState();
             return;
         }
 
@@ -748,7 +738,7 @@ export class Game extends EventEmitter {
 
         this.event("resetWarning", { resetInSeconds: 15 });
 
-        setTimeout(() => this.resetState, 15);
+        setTimeout(() => this.resetState, 15000);
     }
 
     /**
