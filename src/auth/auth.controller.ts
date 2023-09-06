@@ -17,7 +17,7 @@ export class AuthController {
 
         return {
             access_token: tokens.access_token,
-            permissions: req.user.permissions
+            user: req.user
         }
     }
 
