@@ -11,7 +11,13 @@ async function bootstrap() {
 
   app.useGlobalPipes(new ValidationPipe({ transform: true, transformOptions: { enableImplicitConversion: true }}));
   app.useGlobalInterceptors(new InstanceToPlainInterceptor());
+  
   app.use(cookieParser(config.get<string>("SIGNED_COOKIE_SECRET")));
+  
+  app.enableCors({
+    origin: 'http://localho.st:3000',
+    credentials: true
+  });
   
   await app.listen(parseInt(config.get<string>("HTTP_PORT")) || 3000);
 }
