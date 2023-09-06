@@ -28,13 +28,13 @@ export class IsAuthenticatedGuard implements CanActivate {
 
     private canActivateHttp(context: ExecutionContext): boolean {
         const request: Request = context.switchToHttp().getRequest();
-        return this.testAuth({ user: request.user, session_id: request.user.session_id });
+        return !!request.user && !!request.user?.session_id;
     }
 
     private canActivateWs(context: ExecutionContext): boolean {
         const socket: Socket = context.switchToWs().getClient();
         
-        if (!this.testAuth({ user: socket.session.user, session_id: socket.session.id })) {
+        if (!socket?.session?.user || !socket?.session?.id) {
             socket.emit("unauthorized", { message: "You must be logged in." });
             return false;
         }
