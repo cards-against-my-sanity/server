@@ -13,7 +13,7 @@ async function bootstrap() {
   app.useGlobalInterceptors(new InstanceToPlainInterceptor());
   app.use(cookieParser(config.get<string>("SIGNED_COOKIE_SECRET")));
   
-  await app.listen(3000);
+  await app.listen(parseInt(config.get<string>("HTTP_PORT")) || 3000);
 }
 
 bootstrap();
