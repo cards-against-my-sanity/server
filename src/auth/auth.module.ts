@@ -7,10 +7,12 @@ import { JwtRefreshTokenModule } from './jwt-refresh-token/jwt-refresh-token.mod
 import { LocalAuthModule } from './local-auth/local-auth.module';
 import { SessionModule } from 'src/session/session.module';
 import { UsersModule } from 'src/users/users.module';
+import { AnonAuthModule } from './anon-auth/anon-auth.module';
 
 @Module({
   imports: [
     PassportModule,
+    AnonAuthModule,
     LocalAuthModule,
     JwtAccessTokenModule,
     JwtRefreshTokenModule,

@@ -5,7 +5,7 @@ import { UsersService } from "src/users/users.service";
 import * as argon2 from 'argon2';
 
 @Injectable()
-export class LocalAuthStrategy extends PassportStrategy(Strategy) {
+export class LocalAuthStrategy extends PassportStrategy(Strategy, 'local') {
     constructor(private readonly usersService: UsersService) {
         super({ usernameField: 'nickname' });
     }
