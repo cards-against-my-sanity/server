@@ -12,7 +12,7 @@ import { AppGateway } from './app.gateway';
 import { SessionModule } from './session/session.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { GamesModule } from './games/games.module';
-import { JwtAccessTokenGuard } from './auth/jwt-access-token/jwt-access-token.guard';
+import { JwtAccessTokenWithAnonFallbackGuard } from './auth/jwt-access-token/jwt-access-token-with-anon-fallback.guard';
 
 @Module({
   imports: [
@@ -43,7 +43,7 @@ import { JwtAccessTokenGuard } from './auth/jwt-access-token/jwt-access-token.gu
   providers: [
     {
       provide: APP_GUARD,
-      useClass: JwtAccessTokenGuard
+      useClass: JwtAccessTokenWithAnonFallbackGuard
     },
     {
       provide: APP_GUARD,

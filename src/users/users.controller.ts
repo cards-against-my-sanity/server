@@ -4,8 +4,8 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { HasPermissions } from 'src/permission/permissions.decorator';
 import { Permission } from 'src/permission/permission.class';
-import { JwtAccessTokenGuard } from 'src/auth/jwt-access-token/jwt-access-token.guard';
 import { Request, Response } from 'express';
+import { IsAuthenticatedGuard } from 'src/auth/is-authenticated.guard';
 
 @Controller('users')
 export class UsersController {
@@ -17,20 +17,19 @@ export class UsersController {
   }
 
   @Get()
-  @UseGuards(JwtAccessTokenGuard)
+  @UseGuards(IsAuthenticatedGuard)
   findSelf(@Req() req: Request) {
-    return this.usersService.findOne(req.user.id);
+    return this.usersService.findOneById(req.user.id);
   }
 
   @Patch()
-  @UseGuards(JwtAccessTokenGuard)
   @HasPermissions(Permission.ChangeUserDetails)
   updateSelf(@Req() req: Request, @Body() updateUserDto: UpdateUserDto) {
     return this.usersService.update(req.user.id, updateUserDto);
   }
 
   @Delete()
-  @UseGuards(JwtAccessTokenGuard)
+  @UseGuards(IsAuthenticatedGuard)
   removeSelf(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     this.usersService.remove(req.user.id);
     res.clearCookie('refresh');

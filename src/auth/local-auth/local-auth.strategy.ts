@@ -11,7 +11,7 @@ export class LocalAuthStrategy extends PassportStrategy(Strategy) {
     }
 
     async validate(username: string, password: string) {
-        const user = await this.usersService.findOneByEmail(username);
+        const user = await this.usersService.findOneByNickname(username);
 
         if (user && (await argon2.verify(user.hash, password + user.salt))) {
             return user;

@@ -14,15 +14,9 @@ export class AuthService {
     ) {}
 
     async startSession(userId: string, ip: string) {
-        const user = await this.usersService.findOne(userId);
+        const user = await this.usersService.findOneById(userId);
         const session = await this.sessionService.createSession(user, ip)
-
-        const payload = { sub: session.id }
-
-        return {
-            access_token: await this.accessTokenService.signAsync(payload),
-            refresh_token: await this.refreshTokenService.signAsync(payload)
-        };
+        return this.refreshTokens(session.id);
     }
 
     endSession(sessionId: string) {

@@ -2,8 +2,8 @@ import { Controller, Delete, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { LocalAuthGuard } from './local-auth/local-auth.guard';
 import { AuthService } from './auth.service';
 import { JwtRefreshTokenGuard } from './jwt-refresh-token/jwt-refresh-token.guard';
-import { JwtAccessTokenGuard } from './jwt-access-token/jwt-access-token.guard';
 import { Request, Response } from 'express';
+import { IsAuthenticatedGuard } from './is-authenticated.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -33,7 +33,7 @@ export class AuthController {
     }
 
     @Delete('logout')
-    @UseGuards(JwtAccessTokenGuard)
+    @UseGuards(IsAuthenticatedGuard)
     async logOut(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
         this.authService.endSession(req.user.session_id);
         res.clearCookie('refresh');

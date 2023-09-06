@@ -9,8 +9,6 @@ import { CreateBlackCardDto } from './dto/create-black-card.dto';
 import { CreateWhiteCardDto } from './dto/create-white-card.dto';
 import { UpdateWhiteCardDto } from './dto/update-white-card.dto';
 import { UpdateBlackCardDto } from './dto/update-black-card.dto';
-import { of } from 'rxjs';
-import { off } from 'process';
 import { WhiteCard } from './entities/white-card.entity';
 import { BlackCard } from './entities/black-card.entity';
 
