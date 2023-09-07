@@ -8,7 +8,6 @@ import { AuthModule } from './auth/auth.module';
 import { APP_GUARD } from '@nestjs/core';
 import { PermissionModule } from './permission/permission.module';
 import { PermissionsGuard } from './permission/permissions.guard';
-import { AppGateway } from './app.gateway';
 import { SessionModule } from './session/session.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { GamesModule } from './games/games.module';
@@ -48,8 +47,7 @@ import { CookieAuthWithAnonFallbackGuard } from './auth/cookie-auth/cookie-auth-
     {
       provide: APP_GUARD,
       useClass: PermissionsGuard
-    },
-    AppGateway
+    }
   ]
 })
 export class AppModule {}
