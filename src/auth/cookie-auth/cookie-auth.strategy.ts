@@ -14,9 +14,7 @@ export class CookieAuthStrategy extends PassportStrategy(Strategy, 'cookie') {
         if (!req.signedCookies || !req.signedCookies.sid) {
             return;
         }
-
-        console.log("got sid:", req.signedCookies.sid);
-
+        
         const session = await this.sessionService.findOne(req.signedCookies.sid);
         if (!session) {
             throw new UnauthorizedException("Session invalid, expired, or revoked.");

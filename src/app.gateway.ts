@@ -25,16 +25,10 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
             })
             .forEach(rawCookie => rawCookies[rawCookie.key] = rawCookie.val);
 
-        console.log("websocket got raw cookies");
-        console.log(rawCookies);
-
         const signedCookies = cookieParser.signedCookies(
             rawCookies, 
             this.configService.get<string>("SIGNED_COOKIE_SECRET")
         );
-
-        console.log("websocket got signed cookies");
-        console.log(JSON.stringify(signedCookies));
 
         if (!signedCookies.sid) {
             client.emit("connection_status", { state: "open", type: "guest" });
