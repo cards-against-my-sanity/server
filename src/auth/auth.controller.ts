@@ -17,9 +17,7 @@ export class AuthController {
             { httpOnly: true, signed: true }
         );
         
-        return {
-            user: req.user
-        }
+        return req.user;
     }
 
     @Post('validate_session')
