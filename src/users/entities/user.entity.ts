@@ -20,8 +20,8 @@ export class User {
     @Column()
     @Exclude()
     salt: string;
-
-    @OneToOne(() => UserPermission, (permission) => permission.user, { 
+    
+    @OneToOne(() => UserPermission, permissions => permissions.user, { 
         eager: true,
         onDelete: 'CASCADE'
     })

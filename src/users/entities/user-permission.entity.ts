@@ -8,11 +8,11 @@ export class UserPermission {
     @Exclude()
     id: string;
 
-    @JoinColumn()
     @OneToOne(() => User, (user) => user.permissions, { 
         onDelete: 'CASCADE' 
     })
-    user: Promise<User>;
+    @JoinColumn()
+    user: User;
 
     @Column()
     generic_permissions: number;
