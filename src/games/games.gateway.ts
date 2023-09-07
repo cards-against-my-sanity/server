@@ -9,14 +9,29 @@ import { GameSerializer } from 'src/util/game.serializer';
 import { GameStatusCode } from './game-status-code';
 import { GameChannel } from './game_channel';
 import { GameSettings } from './game_settings';
+import { SessionService } from 'src/session/session.service';
+import { SchedulerRegistry } from '@nestjs/schedule';
+import { ConfigService } from '@nestjs/config';
+import * as cookieParser from 'cookie-parser';
+import { Session } from 'src/session/entities/session.entity';
 
-@WebSocketGateway()
+@WebSocketGateway({
+  cors: {
+    origin: 'http://localho.st:3000',
+    credentials: true
+  }
+})
 @UseGuards(PermissionsGuard)
 export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   private readonly server: Server;
 
-  constructor(private readonly service: GamesService) {
+  constructor(
+    private readonly service: GamesService,
+    private readonly sessionService: SessionService,
+    private readonly schedulerRegistry: SchedulerRegistry,
+    private readonly configService: ConfigService
+  ) {
     service.on('playerJoinedGame', this.handlePlayerJoinedGame);
     service.on('playerLeftGame', this.handlePlayerLeftGame);
     service.on('spectatorJoinedGame', this.handleSpectatorJoinedGame);
@@ -65,9 +80,9 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     client.leave(GameChannel.GAME_BROWSER);
-      
+
     client.join([
-      GameChannel.GAME_ROOM(game.getId()), 
+      GameChannel.GAME_ROOM(game.getId()),
       GameChannel.GAME_USER_ROOM(game.getId(), user.id)
     ]);
 
@@ -127,7 +142,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    */
   @SubscribeMessage("addDeckToGame")
   @HasPermissions(Permission.ChangeGameSettings)
-  async addDeckToGame(client: Socket, @MessageBody('deck_id') deckId: string) {
+  async addDeckToGame(@ConnectedSocket() client: Socket, @MessageBody('deck_id') deckId: string) {
     const game = this.service.getGameHostedBy(client.session.user);
     if (!game) {
       client.emit("gameNotFound");
@@ -143,7 +158,8 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (status !== GameStatusCode.ACTION_OK) {
       client.emit("deckNotAdded", { reason: status.getMessage() });
     } else {
-      client.emit("deckAdded");
+      this.server.to(GameChannel.GAME_ROOM(game.getId())).emit("deckAdded", { decks: game.getDecks() });
+      this.server.to(GameChannel.GAME_BROWSER).emit("deckAdded", { id: game.getId(), decks: game.getDecks() })
     }
   }
 
@@ -159,7 +175,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    */
   @SubscribeMessage("changeGameSettings")
   @HasPermissions(Permission.ChangeGameSettings)
-  changeGameSettings(client: Socket, @MessageBody('settings') settings: Partial<GameSettings>) {
+  changeGameSettings(@ConnectedSocket() client: Socket, @MessageBody('settings') settings: Partial<GameSettings>) {
     const game = this.service.getGameHostedBy(client.session.user);
     if (!game) {
       client.emit("gameNotFound");
@@ -182,7 +198,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (settings.maxScore) {
       game.setMaxScore(Math.floor(settings.maxScore));
     }
-    
+
     this.server.to(GameChannel.GAME_ROOM(game.getId())).emit("settingsUpdated", game.getSettings());
     this.server.to(GameChannel.GAME_BROWSER).emit("settingsUpdated", { id: game.getId(), settings: game.getSettings() })
   }
@@ -217,9 +233,9 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
       client.emit("gameNotJoined", { reason: status.getMessage() });
     } else {
       client.leave(GameChannel.GAME_BROWSER);
-      
+
       client.join([
-        GameChannel.GAME_ROOM(game.getId()), 
+        GameChannel.GAME_ROOM(game.getId()),
         GameChannel.GAME_USER_ROOM(game.getId(), user.id)
       ]);
 
@@ -257,9 +273,9 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
       client.emit("gameNotSpectated", { reason: status.getMessage() });
     } else {
       client.leave(GameChannel.GAME_BROWSER);
-      
+
       client.join([
-        GameChannel.GAME_ROOM(game.getId()), 
+        GameChannel.GAME_ROOM(game.getId()),
         GameChannel.GAME_USER_ROOM(game.getId(), user.id)
       ]);
 
@@ -362,7 +378,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
 
-    client.to(GameChannel.GAME_ROOM(game.getId())).emit("chat", { 
+    client.to(GameChannel.GAME_ROOM(game.getId())).emit("chat", {
       user: {
         id: user.id,
         nickname: user.nickname
@@ -426,52 +442,6 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (status !== GameStatusCode.ACTION_OK) {
       client.emit("cardsNotJudged", { reason: status.getMessage() });
     }
-  }
-
-  /**
-   * =========================================================
-   * Connection handlers
-   * =========================================================
-   */
-
-  /**
-   * Handles a client connecting to the websocket server.
-   * Puts the user into the game-browser room so they can
-   * list games and receive updates when game details
-   * change.
-   * 
-   * @param client the client who has connected
-   */
-  handleConnection(client: Socket) {
-    client.join(GameChannel.GAME_BROWSER);
-  }
-
-  /**
-   * Handles a client disconnecting from the websocket server.
-   * Facilitates a user cleanly leaving a game either as host,
-   * player, or spectator.
-   * 
-   * @param client the client who has disconnected
-   */
-  handleDisconnect(client: Socket) {
-      if (!client.session) {
-        return;
-      }
-      
-      client.rooms.forEach(room => client.leave(room));
-
-      const { user } = client.session;
-
-      const memberGame = this.service.getGames().find(g => g.hasPlayer(user.id));
-      if (memberGame) {
-        memberGame.removePlayer(user.id);
-        return;
-      }
-
-      const spectatedGame = this.service.getGames().find(g => g.hasSpectator(user.id));
-      if (spectatedGame) {
-        spectatedGame.removeSpectator(user.id);
-      }
   }
 
   /**
@@ -544,7 +514,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.to(GameChannel.GAME_BROWSER)
       .emit("gameInfoUpdate", { gameId: payload.gameId, type: "roundNumberIncrement" });
   }
-  
+
   /**
    * Deals a white card to a player.
    * 
@@ -572,10 +542,10 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    */
   handleRoundWinner(payload: Record<string, any>) {
     this.server.to(GameChannel.GAME_ROOM(payload.gameId))
-      .emit("roundWinner", { 
-        id: payload.userId, 
-        nickname: payload.nickname, 
-        winningCards: payload.winningCards 
+      .emit("roundWinner", {
+        id: payload.userId,
+        nickname: payload.nickname,
+        winningCards: payload.winningCards
       });
   }
 
@@ -612,7 +582,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.to(GameChannel.GAME_ROOM(payload.id))
       .emit("illegalStateTransition", { from: payload.from, to: payload.to });
   }
-  
+
   /**
    * Handles when a (legal) state transition occurs.
    * Notifies the frontends to prepare for the new
@@ -623,5 +593,122 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
   handleStateTransition(payload: Record<string, any>) {
     this.server.to(GameChannel.GAME_ROOM(payload.id))
       .emit("stateTransition", { to: payload.to });
+  }
+
+  /**
+   * =========================================================
+   * Connection handlers
+   * =========================================================
+   */
+
+  /**
+   * Handles a client connecting to the websocket server.
+   * Puts the user into the game-browser room so they can
+   * list games and receive updates when game details
+   * change.
+   * 
+   * @param client the client who has connected
+   */
+  async handleConnection(client: Socket) {
+    const rawCookies: { [key: string]: string } = {};
+
+    decodeURIComponent(client.handshake.headers.cookie)
+      .split(";")
+      .map(rawCookie => {
+        const keyVal = rawCookie.split("=");
+        return { key: keyVal[0], val: keyVal[1] }
+      })
+      .forEach(rawCookie => rawCookies[rawCookie.key] = rawCookie.val);
+
+    const signedCookies = cookieParser.signedCookies(
+      rawCookies,
+      this.configService.get<string>("SIGNED_COOKIE_SECRET")
+    );
+
+    if (!signedCookies.sid) {
+      client.emit("connection_status", { state: "open", type: "guest" });
+      client.join(GameChannel.GAME_BROWSER);
+      return;
+    }
+
+    const session = await this.getSessionById(client, signedCookies.sid);
+    if (!session) {
+      client.emit("connection_status", { status: "closed", message: "Session expired or was revoked." });
+      client.disconnect(true);
+      return;
+    }
+
+    // reauthorize the connection every 5 minutes automatically
+    this.schedulerRegistry.addInterval(
+      `ws-reauth:${session.id}`,
+      setInterval(async () => {
+        if (!(await this.getSessionById(client, session.id))) {
+          client.emit("connection_status", { status: "closed", message: "Session expired or was revoked." });
+          client.disconnect(true);
+          return;
+        }
+      }, 5 * 60 * 1000)
+    );
+
+    client.session = {
+      id: session.id,
+      user: session.user
+    };
+
+    client.emit("connection_status", { status: "open", type: "user" });
+    
+    client.join(GameChannel.GAME_BROWSER);
+  }
+
+  /**
+   * Handles a client disconnecting from the websocket server.
+   * Facilitates a user cleanly leaving a game either as host,
+   * player, or spectator.
+   * 
+   * @param client the client who has disconnected
+   */
+  handleDisconnect(client: Socket) {
+    if (!client.session) {
+      return;
+    }
+
+    const { id } = client.session;
+
+    if (this.schedulerRegistry.doesExist('interval', `ws-reauth:${id}`)) {
+      this.schedulerRegistry.deleteInterval(`ws-reauth:${id}`);
+    }
+
+    client.rooms.forEach(room => client.leave(room));
+
+    const { user } = client.session;
+
+    const memberGame = this.service.getGames().find(g => g.hasPlayer(user.id));
+    if (memberGame) {
+      memberGame.removePlayer(user.id);
+      return;
+    }
+
+    const spectatedGame = this.service.getGames().find(g => g.hasSpectator(user.id));
+    if (spectatedGame) {
+      spectatedGame.removeSpectator(user.id);
+    }
+  }
+
+  private async getSessionById(client: Socket, id: string | string[]): Promise<Session> {
+    let actual_id: string;
+    if (Array.isArray(id)) {
+      actual_id = id[0];
+    } else {
+      actual_id = id;
+    }
+
+    const session = await this.sessionService.findOne(actual_id);
+    if (!session) {
+      client.emit("connection_status", { status: "closed", message: "Session expired or revoked. Please log in again." });
+      client.disconnect(true);
+      return null;
+    }
+
+    return session;
   }
 }

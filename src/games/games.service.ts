@@ -84,7 +84,7 @@ export class GamesService extends EventEmitter {
             .reduce((acc, cur) => ({
                 black: acc.black.concat(cur.black),
                 white: acc.white.concat(cur.white)
-            }));
+            }), { black: [], white: [] });
 
         game.setCards(black, white);
 

@@ -18,22 +18,22 @@ export class UsersService {
   async create(createUserDto: CreateUserDto) {
     const existing = await this.findOneByNickname(createUserDto.nickname);
     if (existing != null) {
-      throw new ConflictException("email already taken by another user");
+      throw new ConflictException("nickname already taken by another user");
     }
 
     const { salt, hash } = await this.hash(createUserDto.password);
 
-    const user = await this.usersRepository.save({
+    const permissions = await this.userPermissionsRepository.save(
+      PermissionUtil.createNewUserPermission()
+    );
+
+    await this.usersRepository.save({
       nickname: createUserDto.nickname,
       email: createUserDto.email,
       hash,
-      salt
+      salt,
+      permissions
     });
-
-    const permissions = PermissionUtil.createNewUserPermission();
-    permissions.user = Promise.resolve(user);
-
-    await this.userPermissionsRepository.save(permissions);
   }
 
   findAll() {

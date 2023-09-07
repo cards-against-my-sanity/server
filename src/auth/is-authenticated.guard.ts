@@ -41,8 +41,4 @@ export class IsAuthenticatedGuard implements CanActivate {
 
         return true;
     }
-
-    private testAuth(auth: { user: User, session_id: string }): boolean {
-        return !!auth && !!auth.user && !!auth.session_id;
-    }
 }
