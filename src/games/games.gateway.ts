@@ -90,7 +90,9 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const serialized = GameSerializer.serializeForGameBrowser(game);
     client.emit("gameCreated", serialized);
 
-    this.server.to(GameChannel.GAME_BROWSER).emit("gameAdded", serialized)
+    this.server.to(GameChannel.GAME_BROWSER).emit("gameAdded", serialized);
+
+    return {};
   }
 
   /**
@@ -117,6 +119,8 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (startStatus != GameStatusCode.ACTION_OK) {
       client.emit("gameNotStarted", { reason: startStatus.getMessage() });
     }
+
+    return {};
   }
 
   @SubscribeMessage("stopGame")
@@ -129,6 +133,8 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     game.stop();
+
+    return {};
   }
 
   /**
@@ -162,6 +168,8 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.server.to(GameChannel.GAME_ROOM(game.getId())).emit("deckAdded", { decks: game.getDecks() });
       this.server.to(GameChannel.GAME_BROWSER).emit("deckAdded", { id: game.getId(), decks: game.getDecks() })
     }
+
+    return {};
   }
 
   /**
@@ -202,6 +210,8 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     this.server.to(GameChannel.GAME_ROOM(game.getId())).emit("settingsUpdated", { settings: game.getSettings() });
     this.server.to(GameChannel.GAME_BROWSER).emit("settingsUpdated", { id: game.getId(), settings: game.getSettings() })
+
+    return {};
   }
 
   /**
@@ -242,6 +252,8 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       client.emit("gameJoined", GameSerializer.serializeForGameBrowser(game));
     }
+
+    return {};
   }
 
   /**
@@ -282,6 +294,8 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       client.emit("gameSpectated");
     }
+
+    return {};
   }
 
   /**
@@ -323,6 +337,8 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
         this.server.to(GameChannel.GAME_BROWSER).emit("gameRemoved", { id: game.getId() });
       }
     }
+
+    return {};
   }
 
   /**
@@ -359,6 +375,8 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       client.emit("gameUnspectated");
     }
+
+    return {};
   }
 
   /**
@@ -388,6 +406,8 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
       },
       message
     });
+
+    return {};
   }
 
   /**
@@ -418,6 +438,8 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     } else {
       this.server.to(GameChannel.GAME_ROOM(game.getId())).emit("cardsPlayed", { user: user.id });
     }
+
+    return {};
   }
 
   /**
@@ -445,6 +467,8 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (status !== GameStatusCode.ACTION_OK) {
       client.emit("cardsNotJudged", { reason: status.getMessage() });
     }
+
+    return {};
   }
 
   /**
