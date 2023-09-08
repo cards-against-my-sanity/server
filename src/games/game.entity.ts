@@ -182,12 +182,25 @@ export class Game extends EventEmitter {
 
         this.players.push(new Player(user));
 
-        this.event('playerJoinedGame');
-        return null;
+        this.event('playerJoinedGame', { userId: user.id, nickname: user.nickname });
+        return GameStatusCode.ACTION_OK;
     }
 
+    /**
+     * Gets a specific player by id
+     * @param id the user id of the player to get
+     * @returns the plaeyr or undefined
+     */
     getPlayer(id: string): Player {
-        return this.players.find(p => p.getUser().id);
+        return this.players.find(p => p.getUser().id === id);
+    }
+
+    /**
+     * Gets the players in the game
+     * @returns the players in the game
+     */
+    getPlayers(): Player[] {
+        return this.players.slice();
     }
 
     /**
@@ -268,8 +281,16 @@ export class Game extends EventEmitter {
 
         this.spectators.push(new Spectator(user));
 
-        this.event('spectatorJoinedGame');
+        this.event('spectatorJoinedGame', { userId: user.id, nickname: user.nickname });
         return GameStatusCode.ACTION_OK;
+    }
+
+    /**
+     * Gets the spectators in the game
+     * @returns the spectators in the game
+     */
+    getSpectators(): Spectator[] {
+        return this.spectators.slice();
     }
 
     /**
@@ -310,8 +331,18 @@ export class Game extends EventEmitter {
 
         this.spectators = this.spectators.filter(s => s.getUser().id !== id);
 
-        this.event('spectatorLeftGame');
+        this.event('spectatorLeftGame', { userId: id });
         return GameStatusCode.ACTION_OK;
+    }
+
+    /**
+     * Gets the current round number of the
+     * game.
+     * 
+     * @returns the current round number
+     */
+    getRoundNumber(): number {
+        return this.roundNumber;
     }
 
     /**

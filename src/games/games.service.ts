@@ -5,7 +5,6 @@ import { User } from 'src/users/entities/user.entity';
 import { EventEmitter } from 'stream';
 import { GameStatusCode } from './game-status-code';
 import { CardsService } from 'src/cards/cards.service';
-import { CardType } from 'src/cards/card-type.enum';
 
 @Injectable()
 export class GamesService extends EventEmitter {
@@ -33,19 +32,19 @@ export class GamesService extends EventEmitter {
 
         const game = new Game(host);
         
-        game.on('playerJoinedGame', this.forwardEvent);
-        game.on('playerLeftGame', this.forwardEvent);
-        game.on('spectatorJoinedGame', this.forwardEvent);
-        game.on('spectatorLeftGame', this.forwardEvent);
-        game.on('gameStarted', this.forwardEvent);
-        game.on('beginNextRound', this.forwardEvent);
-        game.on('dealCardToPlayer', this.forwardEvent);
-        game.on('dealBlackCard', this.forwardEvent);
-        game.on('roundWinner', this.forwardEvent);
-        game.on('gameWinner', this.forwardEvent);
-        game.on('resetWarning', this.forwardEvent);
-        game.on('illegalStateTransition', this.forwardEvent);
-        game.on('stateTransition', this.forwardEvent);
+        game.on('playerJoinedGame', this.forwardEvent.bind(this));
+        game.on('playerLeftGame', this.forwardEvent.bind(this));
+        game.on('spectatorJoinedGame', this.forwardEvent.bind(this));
+        game.on('spectatorLeftGame', this.forwardEvent.bind(this));
+        game.on('gameStarted', this.forwardEvent.bind(this));
+        game.on('beginNextRound', this.forwardEvent.bind(this));
+        game.on('dealCardToPlayer', this.forwardEvent.bind(this));
+        game.on('dealBlackCard', this.forwardEvent.bind(this));
+        game.on('roundWinner', this.forwardEvent.bind(this));
+        game.on('gameWinner', this.forwardEvent.bind(this));
+        game.on('resetWarning', this.forwardEvent.bind(this));
+        game.on('illegalStateTransition', this.forwardEvent.bind(this));
+        game.on('stateTransition', this.forwardEvent.bind(this));
         
         this.games.push(game);
         return game;

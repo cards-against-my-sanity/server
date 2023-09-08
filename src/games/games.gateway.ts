@@ -1,4 +1,4 @@
-import { ConnectedSocket, MessageBody, OnGatewayConnection, OnGatewayDisconnect, SubscribeMessage, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
+import { ConnectedSocket, MessageBody, OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit, SubscribeMessage, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 import { GamesService } from './games.service';
 import { Server, Socket } from 'socket.io';
 import { HasPermissions } from 'src/permission/permissions.decorator';
@@ -14,6 +14,7 @@ import { SchedulerRegistry } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import * as cookieParser from 'cookie-parser';
 import { Session } from 'src/session/entities/session.entity';
+import { GameState } from './game-state.enum';
 
 @WebSocketGateway({
   cors: {
@@ -32,18 +33,18 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly schedulerRegistry: SchedulerRegistry,
     private readonly configService: ConfigService
   ) {
-    service.on('playerJoinedGame', this.handlePlayerJoinedGame);
-    service.on('playerLeftGame', this.handlePlayerLeftGame);
-    service.on('spectatorJoinedGame', this.handleSpectatorJoinedGame);
-    service.on('spectatorLeftGame', this.handleSpectatorLeftGame);
-    service.on('beginNextRound', this.handleBeginNextRound);
-    service.on('dealCardToPlayer', this.handleDealCardToPlayer);
-    service.on('dealBlackCard', this.handleDealBlackCard);
-    service.on('roundWinner', this.handleRoundWinner);
-    service.on('gameWinner', this.handleGameWinner);
-    service.on('resetWarning', this.handleResetWarning);
-    service.on('illegalStateTransition', this.handleIllegalStateTransition);
-    service.on('stateTransition', this.handleStateTransition);
+    service.on('playerJoinedGame', this.handlePlayerJoinedGame.bind(this));
+    service.on('playerLeftGame', this.handlePlayerLeftGame.bind(this));
+    service.on('spectatorJoinedGame', this.handleSpectatorJoinedGame.bind(this));
+    service.on('spectatorLeftGame', this.handleSpectatorLeftGame.bind(this));
+    service.on('beginNextRound', this.handleBeginNextRound.bind(this));
+    service.on('dealCardToPlayer', this.handleDealCardToPlayer.bind(this));
+    service.on('dealBlackCard', this.handleDealBlackCard.bind(this));
+    service.on('roundWinner', this.handleRoundWinner.bind(this));
+    service.on('gameWinner', this.handleGameWinner.bind(this));
+    service.on('resetWarning', this.handleResetWarning.bind(this));
+    service.on('illegalStateTransition', this.handleIllegalStateTransition.bind(this));
+    service.on('stateTransition', this.handleStateTransition.bind(this));
   }
 
   /**
@@ -75,12 +76,12 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     const game = this.service.createGame(user);
     if (!game) {
-      client.emit("gameNotCreated", { reason: "You are already hosting a game." });
+      client.emit("gameNotCreated");
       return;
     }
 
     client.leave(GameChannel.GAME_BROWSER);
-
+    
     client.join([
       GameChannel.GAME_ROOM(game.getId()),
       GameChannel.GAME_USER_ROOM(game.getId(), user.id)
@@ -199,7 +200,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
       game.setMaxScore(Math.floor(settings.maxScore));
     }
 
-    this.server.to(GameChannel.GAME_ROOM(game.getId())).emit("settingsUpdated", game.getSettings());
+    this.server.to(GameChannel.GAME_ROOM(game.getId())).emit("settingsUpdated", { settings: game.getSettings() });
     this.server.to(GameChannel.GAME_BROWSER).emit("settingsUpdated", { id: game.getId(), settings: game.getSettings() })
   }
 
@@ -239,7 +240,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
         GameChannel.GAME_USER_ROOM(game.getId(), user.id)
       ]);
 
-      client.emit("gameJoined");
+      client.emit("gameJoined", GameSerializer.serializeForGameBrowser(game));
     }
   }
 
@@ -312,7 +313,9 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     } else {
       client.leave(GameChannel.GAME_ROOM(game.getId()));
       client.leave(GameChannel.GAME_USER_ROOM(game.getId(), user.id));
+
       client.join(GameChannel.GAME_BROWSER);
+
       client.emit("gameLeft");
 
       if (game.getPlayerCount() === 0) {
@@ -460,7 +463,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
       .emit("playerJoined", { id: payload.userId, nickname: payload.nickname });
 
     this.server.to(GameChannel.GAME_BROWSER)
-      .emit("gameInfoUpdate", { gameId: payload.gameId, type: "playerCountIncrement" });
+      .emit("playerJoined", { gameId: payload.gameId, id: payload.userId, nickname: payload.nickname });
   }
 
   /**
@@ -470,10 +473,10 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    */
   private handlePlayerLeftGame(payload: Record<string, any>) {
     this.server.to(GameChannel.GAME_ROOM(payload.gameId))
-      .emit("playerLeft", { id: payload.userId, nickname: payload.nickname });
+      .emit("playerLeft", { id: payload.userId });
 
     this.server.to(GameChannel.GAME_BROWSER)
-      .emit("gameInfoUpdate", { gameId: payload.gameId, type: "playerCountDecrement" });
+      .emit("playerLeft", { gameId: payload.gameId, id: payload.userId });
   }
 
   /**
@@ -486,7 +489,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
       .emit("spectatorJoined", { id: payload.userId, nickname: payload.nickname });
 
     this.server.to(GameChannel.GAME_BROWSER)
-      .emit("gameInfoUpdate", { gameId: payload.gameId, type: "spectatorCountIncrement" });
+      .emit("spectatorJoined", { gameId: payload.gameId, id: payload.userId, nickname: payload.nickname });
   }
 
   /**
@@ -496,10 +499,10 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    */
   private handleSpectatorLeftGame(payload: Record<string, any>) {
     this.server.to(GameChannel.GAME_ROOM(payload.gameId))
-      .emit("spectatorLeft", { id: payload.userId, nickname: payload.nickname });
+      .emit("spectatorLeft", { id: payload.userId });
 
     this.server.to(GameChannel.GAME_BROWSER)
-      .emit("gameInfoUpdate", { gameId: payload.gameId, type: "spectatorCountDecrement" });
+      .emit("spectatorLeft", { gameId: payload.gameId, id: payload.userId });
   }
 
   /**
@@ -512,7 +515,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
       .emit("beginNextRound", { roundNumber: payload.roundNumber });
 
     this.server.to(GameChannel.GAME_BROWSER)
-      .emit("gameInfoUpdate", { gameId: payload.gameId, type: "roundNumberIncrement" });
+      .emit("roundNumberIncrement", { gameId: payload.gameId });
   }
 
   /**
@@ -579,7 +582,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * @param payload the illegal state transition information
    */
   handleIllegalStateTransition(payload: Record<string, any>) {
-    this.server.to(GameChannel.GAME_ROOM(payload.id))
+    this.server.to(GameChannel.GAME_ROOM(payload.gameId))
       .emit("illegalStateTransition", { from: payload.from, to: payload.to });
   }
 
@@ -591,8 +594,11 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * @param payload the state transition payload
    */
   handleStateTransition(payload: Record<string, any>) {
-    this.server.to(GameChannel.GAME_ROOM(payload.id))
-      .emit("stateTransition", { to: payload.to });
+    this.server.to(GameChannel.GAME_ROOM(payload.gameId))
+      .emit("stateTransition", { gameId: payload.gameId, to: payload.to });
+
+    this.server.to(GameChannel.GAME_BROWSER)
+      .emit("stateTransition", { gameId: payload.gameId, to: payload.to });
   }
 
   /**
@@ -600,7 +606,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * Connection handlers
    * =========================================================
    */
-
+  
   /**
    * Handles a client connecting to the websocket server.
    * Puts the user into the game-browser room so they can
@@ -626,14 +632,14 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     );
 
     if (!signedCookies.sid) {
-      client.emit("connection_status", { state: "open", type: "guest" });
+      client.emit("connectionStatus", { state: "open", type: "guest" });
       client.join(GameChannel.GAME_BROWSER);
       return;
     }
 
     const session = await this.getSessionById(client, signedCookies.sid);
     if (!session) {
-      client.emit("connection_status", { status: "closed", message: "Session expired or was revoked." });
+      client.emit("connectionStatus", { status: "closed", message: "Session expired or was revoked." });
       client.disconnect(true);
       return;
     }
@@ -643,7 +649,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
       `ws-reauth:${session.id}`,
       setInterval(async () => {
         if (!(await this.getSessionById(client, session.id))) {
-          client.emit("connection_status", { status: "closed", message: "Session expired or was revoked." });
+          client.emit("connectionStatus", { status: "closed", message: "Session expired or was revoked." });
           client.disconnect(true);
           return;
         }
@@ -655,7 +661,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
       user: session.user
     };
 
-    client.emit("connection_status", { status: "open", type: "user" });
+    client.emit("connectionStatus", { status: "open", type: "user" });
     
     client.join(GameChannel.GAME_BROWSER);
   }
@@ -685,6 +691,12 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const memberGame = this.service.getGames().find(g => g.hasPlayer(user.id));
     if (memberGame) {
       memberGame.removePlayer(user.id);
+      
+      if (memberGame.getPlayerCount() === 0) {
+        this.service.removeGame(memberGame.getId());
+        this.server.to(GameChannel.GAME_BROWSER).emit("gameRemoved", { id: memberGame.getId() });
+      }
+
       return;
     }
 
@@ -704,7 +716,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     const session = await this.sessionService.findOne(actual_id);
     if (!session) {
-      client.emit("connection_status", { status: "closed", message: "Session expired or revoked. Please log in again." });
+      client.emit("connectionStatus", { status: "closed", message: "Session expired or revoked. Please log in again." });
       client.disconnect(true);
       return null;
     }

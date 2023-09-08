@@ -10,11 +10,11 @@
  * host has left the game.
  */
 export enum GameState {
-    Lobby,
-    Dealing,
-    Playing,
-    Judging,
-    Win,
-    Reset,
-    Abandoned
+    Lobby = "Lobby",
+    Dealing = "Dealing",
+    Playing = "Playing",
+    Judging = "Judging",
+    Win = "Win",
+    Reset = "Reset",
+    Abandoned = "Abandoned"
 }
