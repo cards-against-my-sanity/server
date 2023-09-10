@@ -19,7 +19,7 @@ export class Game extends EventEmitter {
 
     private readonly id: string;
 
-    private readonly decks: Deck[] = [];
+    private decks: Deck[] = [];
 
     private readonly availableWhiteCards: WhiteCard[] = [];                     // available to draw
     private readonly playedWhiteCards: Map<Player, WhiteCard[]> = new Map();    // played this round (ephemeral)
@@ -89,6 +89,36 @@ export class Game extends EventEmitter {
         }
 
         this.decks.push(deck);
+
+        return GameStatusCode.ACTION_OK;
+    }
+
+    /**
+     * Removes a deck from the game. Returns true if the
+     * deck has been removed. Returns false if the game
+     * is not accepting deck removals (i.e., not in lobby
+     * state) or if the deck was not already in the game.
+     * 
+     * @param deckId the id of the deck to add to the game
+     * 
+     * @returns NOT_IN_LOBBY_STATE: if the game is not in
+     *          the lobby state
+     * 
+     *          DECK_NOT_IN_GAME: if the deck was already
+     *          added to this game
+     * 
+     *          ACTION_OK: if the deck was removed successfully
+     */
+    removeDeck(deck: Deck): GameStatusCode {
+        if (this.state !== GameState.Lobby) {
+            return GameStatusCode.NOT_IN_LOBBY_STATE;
+        }
+
+        if (this.decks.some(d => d.id !== deck.id)) {
+            return GameStatusCode.DECK_NOT_IN_GAME;
+        }
+
+        this.decks = this.decks.filter(d => d.id !== deck.id);
         return GameStatusCode.ACTION_OK;
     }
 

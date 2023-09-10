@@ -14,7 +14,6 @@ import { SchedulerRegistry } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import * as cookieParser from 'cookie-parser';
 import { Session } from 'src/session/entities/session.entity';
-import { GameState } from './game-state.enum';
 
 @WebSocketGateway({
   cors: {
@@ -81,7 +80,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     client.leave(GameChannel.GAME_BROWSER);
-    
+
     client.join([
       GameChannel.GAME_ROOM(game.getId()),
       GameChannel.GAME_USER_ROOM(game.getId(), user.id)
@@ -165,8 +164,43 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (status !== GameStatusCode.ACTION_OK) {
       client.emit("deckNotAdded", { reason: status.getMessage() });
     } else {
-      this.server.to(GameChannel.GAME_ROOM(game.getId())).emit("deckAdded", { decks: game.getDecks() });
-      this.server.to(GameChannel.GAME_BROWSER).emit("deckAdded", { id: game.getId(), decks: game.getDecks() })
+      this.server.to(GameChannel.GAME_ROOM(game.getId())).emit("decksUpdated", { decks: game.getDecks() });
+      this.server.to(GameChannel.GAME_BROWSER).emit("decksUpdated", { id: game.getId(), decks: game.getDecks() })
+    }
+
+    return {};
+  }
+
+  /**
+   * Allows the host to remove card decks from the
+   * game while it is in lobby state. If the
+   * player is not hosting a game, or the game
+   * is not currently in the lobby state, or
+   * the deck does not exist, nothing happens
+   * and the user receives an error message.
+   * 
+   * @param client the client
+   */
+  @SubscribeMessage("removeDeckFromGame")
+  @HasPermissions(Permission.ChangeGameSettings)
+  async removeDeckFromGame(@ConnectedSocket() client: Socket, @MessageBody('deck_id') deckId: string) {
+    const game = this.service.getGameHostedBy(client.session.user);
+    if (!game) {
+      client.emit("gameNotFound");
+      return;
+    }
+
+    if (!game.canChangeSettings()) {
+      client.emit("gameInProgress");
+      return;
+    }
+
+    const status = await this.service.removeDeckFromGame(game.getId(), deckId);
+    if (status !== GameStatusCode.ACTION_OK) {
+      client.emit("deckNotRemoved", { reason: status.getMessage() });
+    } else {
+      this.server.to(GameChannel.GAME_ROOM(game.getId())).emit("decksUpdated", { decks: game.getDecks() });
+      this.server.to(GameChannel.GAME_BROWSER).emit("decksUpdated", { id: game.getId(), decks: game.getDecks() })
     }
 
     return {};
@@ -209,7 +243,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     this.server.to(GameChannel.GAME_ROOM(game.getId())).emit("settingsUpdated", { settings: game.getSettings() });
-    this.server.to(GameChannel.GAME_BROWSER).emit("settingsUpdated", { id: game.getId(), settings: game.getSettings() })
+    this.server.to(GameChannel.GAME_BROWSER).emit("settingsUpdated", { id: game.getId(), settings: game.getSettings() });
 
     return {};
   }
@@ -630,7 +664,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * Connection handlers
    * =========================================================
    */
-  
+
   /**
    * Handles a client connecting to the websocket server.
    * Puts the user into the game-browser room so they can
@@ -686,7 +720,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     };
 
     client.emit("connectionStatus", { status: "open", type: "user" });
-    
+
     client.join(GameChannel.GAME_BROWSER);
   }
 
@@ -715,7 +749,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const memberGame = this.service.getGames().find(g => g.hasPlayer(user.id));
     if (memberGame) {
       memberGame.removePlayer(user.id);
-      
+
       if (memberGame.getPlayerCount() === 0) {
         this.service.removeGame(memberGame.getId());
         this.server.to(GameChannel.GAME_BROWSER).emit("gameRemoved", { id: memberGame.getId() });

@@ -153,6 +153,39 @@ export class GamesService extends EventEmitter {
     }
 
     /**
+     * Attempts to remove the deck specified by the given
+     * deck id to the game specified by the given game id.
+     * 
+     * @param gameId the id of the game to add the deck to
+     * @param deckId the id of the deck to add to the game
+     * 
+     * @returns UNKNOWN_GAME: if the game could not be found
+     * 
+     *          UNKNOWN_DECK: if the deck could not be found
+     * 
+     *          NOT_IN_LOBBY_STATE: if the game is not in
+     *          the lobby state
+     * 
+     *          DECK_NOT_IN_GAME: if the deck was already
+     *          added to this game
+     * 
+     *          ACTION_OK: if the deck was removed successfully
+     */
+    async removeDeckFromGame(gameId: string, deckId: string): Promise<GameStatusCode> {
+        const game = this.getGame(gameId);
+        if (!game) {
+            return GameStatusCode.UNKNOWN_GAME;
+        }
+
+        const deck = await this.decksService.findOne(deckId);
+        if (!deck) {
+            return GameStatusCode.UNKNOWN_DECK;
+        }
+
+        return game.removeDeck(deck);
+    }
+
+    /**
      * Attempts to add the given user to the game specified
      * by the given game id as a player.
      * 

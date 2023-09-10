@@ -21,6 +21,7 @@ export class GameStatusCode {
     static readonly TOO_MANY_CARDS = new GameStatusCode("You have tried to play too many cards. Please reduce your cards.");
     static readonly INVALID_CARDS = new GameStatusCode("The cards you specified are not valid.");
     static readonly DECK_ALREADY_ADDED = new GameStatusCode("The specified deck is already in the game.");
+    static readonly DECK_NOT_IN_GAME = new GameStatusCode("The specified deck is not in the game.");
 
     constructor(private readonly message: string) {}
 
