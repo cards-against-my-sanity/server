@@ -11,4 +11,7 @@ export class Deck {
 
     @Column()
     description: string;
+
+    @Column({default: 999})
+    weight: number;
 }

@@ -11,13 +11,8 @@ import { UpdateWhiteCardDto } from './dto/update-white-card.dto';
 import { CreateWhiteCardDto } from './dto/create-white-card.dto';
 import { UpdateBlackCardDto } from './dto/update-black-card.dto';
 
-interface UpdateWhiteCardPayload {
-  deck?: Promise<Deck>,
-  content?: string
-}
-
 interface UpdateBlackCardPayload {
-  deck?: Promise<Deck>,
+  decks?: Promise<Deck[]>,
   content?: string,
   pick?: number
 }
@@ -31,29 +26,54 @@ export class CardsService {
   ) {}
 
   countAllInDeck(deckId: string, card_type: CardType) {
-    const criterion = { deck: { id: deckId }};
     switch (card_type) {
       case CardType.Black:
-        return this.blackCardRepository.countBy(criterion);
+        return this.blackCardRepository.createQueryBuilder('blackCard')
+          .innerJoin('blackCard.decks', 'deck')
+          .where('deck.id = :deckId', { deckId })
+          .getCount();
       case CardType.White:
-        return this.whiteCardRepository.countBy(criterion);
+        return this.whiteCardRepository.createQueryBuilder('whiteCard')
+          .innerJoin('whiteCard.decks', 'deck')
+          .where('deck.id = :deckId', { deckId })
+          .getCount();
     }
   }
 
   findAllWhiteCardsInDeck(deckId: string): Promise<WhiteCard[]> {
-    return this.whiteCardRepository.find({ where: { deck: { id: deckId }}});
+    return this.whiteCardRepository
+      .createQueryBuilder('whiteCard')
+      .innerJoin('whiteCard.decks', 'deck')
+      .where('deck.id = :deckId', { deckId })
+      .getMany();
   }
 
   findSomeWhiteCardsInDeck(deckId: string, offset: number, limit: number): Promise<WhiteCard[]> {
-    return this.whiteCardRepository.find({ where: { deck: { id: deckId }}, skip: offset, take: limit });
+    return this.whiteCardRepository
+      .createQueryBuilder('whiteCard')
+      .innerJoin('whiteCard.decks', 'deck')
+      .where('deck.id = :deckId', { deckId })
+      .offset(offset)
+      .limit(limit)
+      .getMany();
   }
 
   findAllBlackCardsInDeck(deckId: string): Promise<BlackCard[]> {
-    return this.blackCardRepository.find({ where: { deck: { id: deckId }}});
+    return this.blackCardRepository
+      .createQueryBuilder('blackCard')
+      .innerJoin('blackCard.decks', 'deck')
+      .where('deck.id = :deckId', { deckId })
+      .getMany();
   }
 
   findSomeBlackCardsInDeck(deckId: string, offset: number, limit: number): Promise<WhiteCard[]> {
-    return this.blackCardRepository.find({ where: { deck: { id: deckId }}, skip: offset, take: limit });
+    return this.blackCardRepository
+      .createQueryBuilder('blackCard')
+      .innerJoin('blackCard.decks', 'deck')
+      .where('deck.id = :deckId', { deckId })
+      .offset(offset)
+      .limit(limit)
+      .getMany();
   }
 
   findOne(id: string, card_type: CardType) {
@@ -66,76 +86,96 @@ export class CardsService {
   }
   
   async createWhiteCard(dto: CreateWhiteCardDto) {
-    const deck = await this.decksService.findOne(dto.deck_id);
-    if (!deck) {
-      throw new NotFoundException("deck does not exist");
+    if (!Array.isArray(dto.deck_ids)) {
+      dto.deck_ids = [dto.deck_ids];
     }
 
-    this.whiteCardRepository.save({
-      content: dto.content,
-      deck: Promise.resolve(deck)
-    })
+    const decks = await Promise.all(dto.deck_ids.map(id => this.decksService.findOne(id)));
+    if (decks.some(d => !d)) {
+      throw new NotFoundException("one of the decks specified was not valid");
+    }
+
+    const card = new WhiteCard();
+    card.content = dto.content;
+    card.decks = Promise.resolve(decks);
+
+    this.whiteCardRepository.save(card);
   }
 
   async createBlackCard(dto: CreateBlackCardDto) {
-    const deck = await this.decksService.findOne(dto.deck_id);
-    if (!deck) {
-      throw new NotFoundException("deck does not exist");
+    if (!Array.isArray(dto.deck_ids)) {
+      dto.deck_ids = [dto.deck_ids];
     }
 
-    this.blackCardRepository.save({
-      content: dto.content,
-      pick: dto.pick,
-      deck: Promise.resolve(deck)
-    })
+    const decks = await Promise.all(dto.deck_ids.map(id => this.decksService.findOne(id)));
+    if (decks.some(d => !d)) {
+      throw new NotFoundException("one of the decks specified was not valid");
+    }
+
+    const card = new BlackCard();
+    card.content = dto.content;
+    card.pick = dto.pick;
+    card.decks = Promise.resolve(decks);
+
+    this.blackCardRepository.save(card);
   }
 
   async updateWhiteCard(id: string, dto: UpdateWhiteCardDto) {
-    const payload: UpdateWhiteCardPayload = {}
+    const currentCard = await this.whiteCardRepository.findOne({ where: { id }, relations: ['decks']});
 
-    const currentCard = await this.whiteCardRepository.findOneBy({ id });
-    const currentDeck = await currentCard.deck;
+    if (!currentCard) {
+      throw new NotFoundException("card not found");
+    }
 
-    if (dto.deck_id && dto.deck_id !== currentDeck.id) {
-      const deck = await this.decksService.findOne(dto.deck_id);
-      if (!deck) {
-        throw new NotFoundException("deck does not exist");
+    if (dto.deck_ids) {
+      if (!Array.isArray(dto.deck_ids)) {
+        dto.deck_ids = [dto.deck_ids];
       }
 
-      payload.deck = Promise.resolve(deck);
+      const decks = await Promise.all(dto.deck_ids.map(id => this.decksService.findOne(id)));
+      if (decks.some(d => !d)) {
+        throw new NotFoundException("one of the decks specified was not valid");
+      }
+
+      currentCard.decks = Promise.resolve(decks);
     }
 
     if (dto.content) {
-      payload.content = dto.content;
+      currentCard.content = dto.content;
     }
 
-    this.whiteCardRepository.update({ id }, payload);
+    this.whiteCardRepository.save(currentCard);
   }
 
   async updateBlackCard(id: string, dto: UpdateBlackCardDto) {
-    const payload: UpdateBlackCardPayload = {}
+    const currentCard = await this.blackCardRepository.findOne({ where: { id }, relations: ['decks']});
 
-    const currentCard = await this.whiteCardRepository.findOneBy({ id });
-    const currentDeck = await currentCard.deck;
+    if (!currentCard) {
+      throw new NotFoundException("card not found");
+    }
 
-    if (dto.deck_id && dto.deck_id !== currentDeck.id) {
-      const deck = await this.decksService.findOne(dto.deck_id);
-      if (!deck) {
-        throw new NotFoundException("deck does not exist");
+    if (dto.deck_ids) {
+      if (!Array.isArray(dto.deck_ids)) {
+        dto.deck_ids = [dto.deck_ids];
       }
 
-      payload.deck = Promise.resolve(deck);
+      const decks = await Promise.all(dto.deck_ids.map(id => this.decksService.findOne(id)));
+      if (decks.some(d => !d)) {
+        throw new NotFoundException("one of the decks specified was not valid");
+      }
+
+      currentCard.decks = Promise.resolve(decks);
     }
 
     if (dto.content) {
-      payload.content = dto.content;
+      currentCard.content = dto.content;
     }
 
     if (dto.pick) {
-      payload.pick = dto.pick;
+      currentCard.pick = dto.pick;
     }
 
-    this.blackCardRepository.update({ id }, payload);
+    this.blackCardRepository.save(currentCard);
   }
 
   async remove(id: string, card_type: CardType) {

@@ -1,4 +1,4 @@
-import { IsString, Length } from "class-validator";
+import { IsNumber, IsOptional, Length } from "class-validator";
 
 export class CreateDeckDto {
     @Length(3, 32)
@@ -6,4 +6,8 @@ export class CreateDeckDto {
     
     @Length(16, 256)
     description: string;
+
+    @IsOptional()
+    @IsNumber()
+    weight: number;
 }

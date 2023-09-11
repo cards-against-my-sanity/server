@@ -1,5 +1,5 @@
 import { Deck } from "src/decks/entities/deck.entity";
-import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, JoinTable, ManyToMany, PrimaryGeneratedColumn } from "typeorm";
 
 @Entity()
 export class BlackCard {
@@ -12,8 +12,9 @@ export class BlackCard {
     @Column()
     pick: number
 
-    @ManyToOne(() => Deck, {
+    @ManyToMany(() => Deck, {
         onDelete: 'CASCADE'
     })
-    deck: Promise<Deck>
+    @JoinTable()
+    decks: Promise<Deck[]>
 }

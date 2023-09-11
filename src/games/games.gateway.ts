@@ -231,15 +231,31 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     if (settings.maxPlayers) {
-      game.setMaxPlayers(Math.floor(settings.maxPlayers));
+      if (game.getPlayerCount() > settings.maxPlayers) {
+        client.emit('maxPlayersTooLow', { reason: "You can't set max players lower than current player count." });
+      } else if (settings.maxPlayers < 3) {
+        client.emit('maxPlayersTooLow', { reason: "You can't set max players lower than 3." });
+      } else {
+        game.setMaxPlayers(Math.floor(settings.maxPlayers));
+      }
     }
 
     if (settings.maxSpectators) {
-      game.setMaxSpectators(Math.floor(settings.maxSpectators));
+      if (game.getSpectatorCount() > settings.maxSpectators) {
+        client.emit('maxSpectatorsTooLow', { reason: "You can't set max spectators lower than current spectator count." });
+      } else if (settings.maxPlayers < 0) {
+        client.emit('maxSpectatorsTooLow', { reason: "You can't set max spectators lower than 0." });
+      } else {
+        game.setMaxSpectators(Math.floor(settings.maxSpectators));
+      }
     }
 
     if (settings.maxScore) {
-      game.setMaxScore(Math.floor(settings.maxScore));
+      if (settings.maxScore < 1) {
+        client.emit('maxScoreTooLow', { reason: "You can't set the max score lower than 1." });
+      } else {
+        game.setMaxScore(Math.floor(settings.maxScore));
+      }
     }
 
     this.server.to(GameChannel.GAME_ROOM(game.getId())).emit("settingsUpdated", { settings: game.getSettings() });
@@ -326,7 +342,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
         GameChannel.GAME_USER_ROOM(game.getId(), user.id)
       ]);
 
-      client.emit("gameSpectated");
+      client.emit("gameSpectated", GameSerializer.serializeForGameBrowser(game));
     }
 
     return {};
@@ -698,6 +714,13 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const session = await this.getSessionById(client, signedCookies.sid);
     if (!session) {
       client.emit("connectionStatus", { status: "closed", message: "Session expired or was revoked." });
+      client.disconnect(true);
+      return;
+    }
+
+    // check if they're already logged in
+    if (this.schedulerRegistry.doesExist("interval", `ws-reauth:${session.id}`)) {
+      client.emit("connectionStatus", { status: "closed", message: "You are already logged in somewhere else." });
       client.disconnect(true);
       return;
     }

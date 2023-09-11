@@ -22,7 +22,7 @@ export class DecksService {
   }
 
   findAll() {
-    return this.decksRepository.find()
+    return this.decksRepository.find({order: {weight: 'asc', name: 'asc'}})
   }
 
   findOne(id: string) {

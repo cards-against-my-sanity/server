@@ -1,8 +1,8 @@
 import { IsUUID, Length, Min, Max } from "class-validator";
 
 export class CreateBlackCardDto {
-    @IsUUID()
-    deck_id: string;
+    @IsUUID(4, {each: true})
+    deck_ids: string[];
 
     @Length(6)
     content: string;
