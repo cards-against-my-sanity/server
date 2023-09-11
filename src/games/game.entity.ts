@@ -114,7 +114,7 @@ export class Game extends EventEmitter {
             return GameStatusCode.NOT_IN_LOBBY_STATE;
         }
 
-        if (this.decks.some(d => d.id !== deck.id)) {
+        if (!this.decks.map(d => d.id).includes(deck.id)) {
             return GameStatusCode.DECK_NOT_IN_GAME;
         }
 
