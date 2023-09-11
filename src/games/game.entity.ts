@@ -143,10 +143,12 @@ export class Game extends EventEmitter {
         this.availableBlackCards.length = 0;
         this.discardedBlackCards.length = 0;
         this.availableBlackCards.push(...blackCards);
+        ArrayShuffler.shuffle(this.availableBlackCards);
 
         this.availableWhiteCards.length = 0;
         this.discardedWhiteCards.length = 0;
         this.availableWhiteCards.push(...whiteCards);
+        ArrayShuffler.shuffle(this.availableWhiteCards);
     }
 
     /**
@@ -550,11 +552,11 @@ export class Game extends EventEmitter {
 
         this.playedWhiteCards.clear();
 
-        this.rotateJudge();
+        const judgeIdx = this.rotateJudge();
 
         this.roundNumber++;
 
-        this.event("beginNextRound", { round: this.roundNumber });
+        this.event("beginNextRound", { round: this.roundNumber, judgeUserId: this.players[judgeIdx].getUser().id });
 
         this.dealingState();
     }
@@ -696,7 +698,7 @@ export class Game extends EventEmitter {
 
         this.playedWhiteCards.set(player, player.removeCardsFromHand(cards));
 
-        if (this.playedWhiteCards.size === this.getPlayerCount()) {
+        if (this.playedWhiteCards.size === this.getPlayerCount() - 1) {
             this.judgingState();
         }
 
@@ -722,7 +724,10 @@ export class Game extends EventEmitter {
         }
 
         this.state = GameState.Judging;
-        this.event("stateTransition", { to: GameState.Judging });
+        this.event("stateTransition", {
+            to: GameState.Judging, 
+            cardsToJudge: [...this.playedWhiteCards].map(e => e[1]) 
+        });
 
         // And now we wait for the judge to...judge.
     }
@@ -789,7 +794,7 @@ export class Game extends EventEmitter {
             userId: winner[0].getUser().id, 
             nickname: winner[0].getUser().nickname,
             winningCards: winner[1]
-        })
+        });
 
         if (this.thereIsAGameWinner()) {
             this.winState();
@@ -899,18 +904,20 @@ export class Game extends EventEmitter {
      * If the current game state is not Playing, 
      * no action occurs.
      */
-    private rotateJudge(): void {
-        if (this.state !== GameState.Playing) {
-            return;
-        }
-
+    private rotateJudge(): number {
         const currentJudgeIdx = this.players.findIndex(p => p.getState() === PlayerState.Judge);
         if (currentJudgeIdx === -1) {
             this.players[0].setState(PlayerState.Judge);
+            return 0;
         }
 
         this.players[currentJudgeIdx].setState(PlayerState.Player);
-        this.players[(currentJudgeIdx + 1) % this.players.length].setState(PlayerState.Judge);
+
+        const nextJudgeIdx = (currentJudgeIdx + 1) % this.players.length;
+
+        this.players[nextJudgeIdx].setState(PlayerState.Judge);
+
+        return nextJudgeIdx;
     }
 
     /**

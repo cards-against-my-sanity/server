@@ -486,7 +486,8 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (status !== GameStatusCode.ACTION_OK) {
       client.emit("cardsNotPlayed", { reason: status.getMessage() });
     } else {
-      this.server.to(GameChannel.GAME_ROOM(game.getId())).emit("cardsPlayed", { user: user.id });
+      this.server.to(GameChannel.GAME_ROOM(game.getId())).emit("cardsPlayed", { id: user.id, nickname: user.nickname });
+      client.emit('discardCards', { cards: cardIds });
     }
 
     return {};
@@ -586,7 +587,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    */
   handleBeginNextRound(payload: Record<string, any>) {
     this.server.to(GameChannel.GAME_ROOM(payload.gameId))
-      .emit("beginNextRound", { roundNumber: payload.roundNumber });
+      .emit("beginNextRound", { roundNumber: payload.roundNumber, judgeUserId: payload.judgeUserId });
 
     this.server.to(GameChannel.GAME_BROWSER)
       .emit("roundNumberIncrement", { gameId: payload.gameId });
@@ -599,7 +600,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    */
   handleDealCardToPlayer(payload: Record<string, any>) {
     this.server.to(GameChannel.GAME_USER_ROOM(payload.gameId, payload.userId))
-      .emit("dealCard", payload.card);
+      .emit("dealCard", { card: payload.card });
   }
 
   /**
@@ -609,7 +610,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    */
   handleDealBlackCard(payload: Record<string, any>) {
     this.server.to(GameChannel.GAME_ROOM(payload.gameId))
-      .emit("dealBlackCard", payload.card);
+      .emit("dealBlackCard", { card: payload.card });
   }
 
   /**
@@ -669,7 +670,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    */
   handleStateTransition(payload: Record<string, any>) {
     this.server.to(GameChannel.GAME_ROOM(payload.gameId))
-      .emit("stateTransition", { gameId: payload.gameId, to: payload.to });
+      .emit("stateTransition", { gameId: payload.gameId, to: payload.to, ...payload });
 
     this.server.to(GameChannel.GAME_BROWSER)
       .emit("stateTransition", { gameId: payload.gameId, to: payload.to });
