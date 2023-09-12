@@ -14,6 +14,8 @@ import { SchedulerRegistry } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import * as cookieParser from 'cookie-parser';
 import { Session } from 'src/session/entities/session.entity';
+import { ObjectUtil } from 'src/util/object-util';
+import { GameSettingsSerializer } from 'src/util/game-settings.serializer';
 
 @WebSocketGateway({
   cors: {
@@ -41,7 +43,8 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     service.on('dealBlackCard', this.handleDealBlackCard.bind(this));
     service.on('roundWinner', this.handleRoundWinner.bind(this));
     service.on('gameWinner', this.handleGameWinner.bind(this));
-    service.on('resetWarning', this.handleResetWarning.bind(this));
+    service.on('roundIntermission', this.handleRoundIntermission.bind(this));
+    service.on('gameWinIntermission', this.handleGameWinIntermission.bind(this));
     service.on('illegalStateTransition', this.handleIllegalStateTransition.bind(this));
     service.on('stateTransition', this.handleStateTransition.bind(this));
   }
@@ -57,7 +60,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    */
   @SubscribeMessage("listGames")
   listGames() {
-    return this.service.getGames().map(g => GameSerializer.serializeForGameBrowser(g));
+    return this.service.getGames().map(g => GameSerializer.serialize(g));
   }
 
   /**
@@ -86,7 +89,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
       GameChannel.GAME_USER_ROOM(game.getId(), user.id)
     ]);
 
-    const serialized = GameSerializer.serializeForGameBrowser(game);
+    const serialized = GameSerializer.serialize(game);
     client.emit("gameCreated", serialized);
 
     this.server.to(GameChannel.GAME_BROWSER).emit("gameAdded", serialized);
@@ -218,7 +221,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    */
   @SubscribeMessage("changeGameSettings")
   @HasPermissions(Permission.ChangeGameSettings)
-  changeGameSettings(@ConnectedSocket() client: Socket, @MessageBody('settings') settings: Partial<GameSettings>) {
+  async changeGameSettings(@ConnectedSocket() client: Socket, @MessageBody('settings') settings: Partial<GameSettings>) {
     const game = this.service.getGameHostedBy(client.session.user);
     if (!game) {
       client.emit("gameNotFound");
@@ -230,7 +233,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
 
-    if (settings.maxPlayers) {
+    if (ObjectUtil.notUndefOrNull(settings.maxPlayers)) {
       if (game.getPlayerCount() > settings.maxPlayers) {
         client.emit('maxPlayersTooLow', { reason: "You can't set max players lower than current player count." });
       } else if (settings.maxPlayers < 3) {
@@ -240,7 +243,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
     }
 
-    if (settings.maxSpectators) {
+    if (ObjectUtil.notUndefOrNull(settings.maxSpectators)) {
       if (game.getSpectatorCount() > settings.maxSpectators) {
         client.emit('maxSpectatorsTooLow', { reason: "You can't set max spectators lower than current spectator count." });
       } else if (settings.maxPlayers < 0) {
@@ -250,7 +253,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
     }
 
-    if (settings.maxScore) {
+    if (ObjectUtil.notUndefOrNull(settings.maxScore)) {
       if (settings.maxScore < 1) {
         client.emit('maxScoreTooLow', { reason: "You can't set the max score lower than 1." });
       } else {
@@ -258,8 +261,32 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
     }
 
-    this.server.to(GameChannel.GAME_ROOM(game.getId())).emit("settingsUpdated", { settings: game.getSettings() });
-    this.server.to(GameChannel.GAME_BROWSER).emit("settingsUpdated", { id: game.getId(), settings: game.getSettings() });
+    if (ObjectUtil.notUndefOrNull(settings.roundIntermissionSeconds)) {
+      if (settings.roundIntermissionSeconds < 0) {
+        settings.roundIntermissionSeconds = 0;
+      }
+
+      game.setRoundIntermissionSeconds(settings.roundIntermissionSeconds);
+    }
+
+    if (ObjectUtil.notUndefOrNull(settings.gameWinIntermissionSeconds)) {
+      if (settings.gameWinIntermissionSeconds < 0) {
+        settings.gameWinIntermissionSeconds = 0;
+      }
+
+      game.setGameWinIntermissionSeconds(settings.gameWinIntermissionSeconds);
+    }
+
+    if (ObjectUtil.notUndefOrNull(settings.allowPlayersToJoinMidGame)) {
+      game.setAllowPlayersToJoinMidGame(settings.allowPlayersToJoinMidGame);
+    }
+
+    if (ObjectUtil.notUndefOrNull(settings.password)) {
+      await game.setPassword(settings.password);
+    }
+
+    this.server.to(GameChannel.GAME_ROOM(game.getId())).emit("settingsUpdated", { settings: GameSettingsSerializer.serialize(game.getSettings())  });
+    this.server.to(GameChannel.GAME_BROWSER).emit("settingsUpdated", { id: game.getId(), settings: GameSettingsSerializer.serialize(game.getSettings()) });
 
     return {};
   }
@@ -300,7 +327,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
         GameChannel.GAME_USER_ROOM(game.getId(), user.id)
       ]);
 
-      client.emit("gameJoined", GameSerializer.serializeForGameBrowser(game));
+      client.emit("gameJoined", GameSerializer.serialize(game));
     }
 
     return {};
@@ -342,7 +369,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
         GameChannel.GAME_USER_ROOM(game.getId(), user.id)
       ]);
 
-      client.emit("gameSpectated", GameSerializer.serializeForGameBrowser(game));
+      client.emit("gameSpectated", GameSerializer.serialize(game));
     }
 
     return {};
@@ -449,7 +476,8 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
 
-    client.to(GameChannel.GAME_ROOM(game.getId())).emit("chat", {
+    this.server.to(GameChannel.GAME_ROOM(game.getId())).emit("chat", {
+      type: 'chat',
       user: {
         id: user.id,
         nickname: user.nickname
@@ -535,10 +563,10 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    */
   private handlePlayerJoinedGame(payload: Record<string, any>) {
     this.server.to(GameChannel.GAME_ROOM(payload.gameId))
-      .emit("playerJoined", { id: payload.userId, nickname: payload.nickname });
+      .emit("playerJoined", { player: payload.player });
 
     this.server.to(GameChannel.GAME_BROWSER)
-      .emit("playerJoined", { gameId: payload.gameId, id: payload.userId, nickname: payload.nickname });
+      .emit("playerJoined", { gameId: payload.gameId, player: payload.player });
   }
 
   /**
@@ -548,10 +576,10 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    */
   private handlePlayerLeftGame(payload: Record<string, any>) {
     this.server.to(GameChannel.GAME_ROOM(payload.gameId))
-      .emit("playerLeft", { id: payload.userId });
+      .emit("playerLeft", { id: payload.id });
 
     this.server.to(GameChannel.GAME_BROWSER)
-      .emit("playerLeft", { gameId: payload.gameId, id: payload.userId });
+      .emit("playerLeft", { gameId: payload.gameId, id: payload.id });
   }
 
   /**
@@ -561,10 +589,10 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    */
   private handleSpectatorJoinedGame(payload: Record<string, any>) {
     this.server.to(GameChannel.GAME_ROOM(payload.gameId))
-      .emit("spectatorJoined", { id: payload.userId, nickname: payload.nickname });
+      .emit("spectatorJoined", { spectator: payload.spectator });
 
     this.server.to(GameChannel.GAME_BROWSER)
-      .emit("spectatorJoined", { gameId: payload.gameId, id: payload.userId, nickname: payload.nickname });
+      .emit("spectatorJoined", { gameId: payload.gameId, spectator: payload.spectator });
   }
 
   /**
@@ -574,10 +602,10 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    */
   private handleSpectatorLeftGame(payload: Record<string, any>) {
     this.server.to(GameChannel.GAME_ROOM(payload.gameId))
-      .emit("spectatorLeft", { id: payload.userId });
+      .emit("spectatorLeft", { id: payload.id });
 
     this.server.to(GameChannel.GAME_BROWSER)
-      .emit("spectatorLeft", { gameId: payload.gameId, id: payload.userId });
+      .emit("spectatorLeft", { gameId: payload.gameId, id: payload.id });
   }
 
   /**
@@ -638,16 +666,25 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   /**
-   * Handles when the reset warning is sent before
-   * the game is cleaned up and moves back to lobby.
+   * Handles when the round intermission is occurring.
    * 
-   * @param payload the reset warning payload
+   * @param payload the round intermission payload
    */
-  handleResetWarning(payload: Record<string, any>) {
+  handleRoundIntermission(payload: Record<string, any>) {
     this.server.to(GameChannel.GAME_ROOM(payload.gameId))
-      .emit("resetWarning", { resetInSeconds: payload.resetInSeconds });
+      .emit("roundIntermission", { roundIntermissionSeconds: payload.roundIntermissionSeconds });
   }
 
+  /**
+   * Handles when the game win intermission is occurring.
+   * 
+   * @param payload the game win intermission payload
+   */
+  handleGameWinIntermission(payload: Record<string, any>) {
+    this.server.to(GameChannel.GAME_ROOM(payload.gameId))
+      .emit("gameWinIntermission", { gameWinIntermissionSeconds: payload.gameWinIntermissionSeconds });
+  }
+  
   /**
    * Handles when an illegal state transition occurs.
    * When this happens, the game is reset. This notification

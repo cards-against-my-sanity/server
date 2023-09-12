@@ -201,7 +201,8 @@ export class GamesService extends EventEmitter {
      *          spectating a game.
      *
      *          NOT_IN_LOBBY_STATE: if the game is
-     *          not in the lobby state
+     *          not in the lobby state and players are
+     *          not allowed to join mid game
      * 
      *          MAX_PLAYERS_REACHED: if the game
      *          has too many players and user is

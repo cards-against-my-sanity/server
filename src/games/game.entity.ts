@@ -11,6 +11,9 @@ import { User } from "src/users/entities/user.entity";
 import { Spectator } from "./spectator.entity";
 import { GameSettings } from "./game_settings";
 import { ArrayShuffler } from "src/util/array-shuffler";
+import { PlayerSerializer } from "src/util/player.serializer";
+import { SpectatorSerializer } from "src/util/spectator.serializer";
+import * as argon2 from 'argon2';
 
 export class Game extends EventEmitter {
     static readonly MINIMUM_PLAYERS = 3;
@@ -195,7 +198,8 @@ export class Game extends EventEmitter {
      * @param id the id of the user to add
      * 
      * @returns NOT_IN_LOBBY_STATE: if the game is
-     *          not in the lobby state
+     *          not in the lobby state and players
+     *          are now allowed to join mid game
      * 
      *          MAX_PLAYERS_REACHED: if the game
      *          has too many players
@@ -204,7 +208,7 @@ export class Game extends EventEmitter {
      *          added
      */
     addPlayer(user: User): GameStatusCode {
-        if (this.state !== GameState.Lobby) {
+        if (this.state !== GameState.Lobby && !this.getAllowPlayersToJoinMidGame()) {
             return GameStatusCode.NOT_IN_LOBBY_STATE;
         }
 
@@ -212,9 +216,12 @@ export class Game extends EventEmitter {
             return GameStatusCode.MAX_PLAYERS_REACHED;
         }
 
-        this.players.push(new Player(user));
+        const player = new Player(user);
 
-        this.event('playerJoinedGame', { userId: user.id, nickname: user.nickname });
+        this.players.push(player);
+
+        this.event('playerJoinedGame', { player: PlayerSerializer.serialize(player) });
+
         return GameStatusCode.ACTION_OK;
     }
 
@@ -287,9 +294,11 @@ export class Game extends EventEmitter {
         if (this.getHost().id === id) {
             this.state = GameState.Abandoned;
             this.event('stateTransition', { to: GameState.Abandoned });
+        } else if (this.players.length < Game.MINIMUM_PLAYERS) {
+            this.resetState(GameStatusCode.NOT_ENOUGH_PLAYERS.getMessage());
         }
 
-        this.event('playerLeftGame', { userId: id })
+        this.event('playerLeftGame', { id })
 
         return GameStatusCode.ACTION_OK;
     }
@@ -311,9 +320,12 @@ export class Game extends EventEmitter {
             return GameStatusCode.MAX_SPECTATORS_REACHED;
         }
 
-        this.spectators.push(new Spectator(user));
+        const spectator = new Spectator(user);
 
-        this.event('spectatorJoinedGame', { userId: user.id, nickname: user.nickname });
+        this.spectators.push(spectator);
+
+        this.event('spectatorJoinedGame', { spectator: SpectatorSerializer.serialize(spectator) });
+
         return GameStatusCode.ACTION_OK;
     }
 
@@ -363,7 +375,8 @@ export class Game extends EventEmitter {
 
         this.spectators = this.spectators.filter(s => s.getUser().id !== id);
 
-        this.event('spectatorLeftGame', { userId: id });
+        this.event('spectatorLeftGame', { id });
+
         return GameStatusCode.ACTION_OK;
     }
 
@@ -465,6 +478,94 @@ export class Game extends EventEmitter {
         }
 
         this.settings.maxSpectators = maxSpectators;
+        return GameStatusCode.ACTION_OK;
+    }
+
+    /**
+     * Gets the current round intermission in seconds
+     * @returns the round intermission in seconds
+     */
+    getRoundIntermissionSeconds(): number {
+        return this.settings.roundIntermissionSeconds;
+    }
+
+    /**
+     * Sets the round intermission in seconds
+     * @param seconds the round intermission in seconds
+     * @returns ACTION_OK - the round intermission was set
+     */
+    setRoundIntermissionSeconds(seconds: number): GameStatusCode {
+        if (seconds < 0) {
+            seconds = 0;
+        }
+
+        this.settings.roundIntermissionSeconds = seconds;
+        return GameStatusCode.ACTION_OK;
+    }
+
+    /**
+     * Gets the current game win intermission in seconds
+     * @returns the game win intermission in seconds
+     */
+    getGameWinIntermissionSeconds(): number {
+        return this.settings.gameWinIntermissionSeconds;
+    }
+
+    /**
+     * Sets the game win intermission in seconds
+     * @param seconds the game win intermission in seconds
+     * @returns ACTION_OK - the game win intermission was set
+     */
+    setGameWinIntermissionSeconds(seconds: number): GameStatusCode {
+        if (seconds < 0) {
+            seconds = 0;
+        }
+        
+        this.settings.gameWinIntermissionSeconds = seconds;
+        return GameStatusCode.ACTION_OK;
+    }
+
+    /**
+     * Gets whether players are allowed to join mid game
+     * @returns true if they are, false otherwise
+     */
+    getAllowPlayersToJoinMidGame(): boolean {
+        return this.settings.allowPlayersToJoinMidGame;
+    }
+
+    /**
+     * Sets whether players are allowed to join mid game
+     * @param allow true if they are, false otherwise
+     * @returns ACTION_OK - the setting has been changed
+     */
+    setAllowPlayersToJoinMidGame(allow: boolean): GameStatusCode {
+        this.settings.allowPlayersToJoinMidGame = allow; 
+        return GameStatusCode.ACTION_OK;
+    }
+
+    /**
+     * Gets the hash of the password that is
+     * required to join.
+     * 
+     * @returns the hash of the password
+     */
+    getPasswordHash(): string {
+        return this.settings.password;
+    }
+
+    /**
+     * Sets the password required to join.
+     * The password is hashed with argon2.
+     * 
+     * @returns ACTION_OK - the password has been set
+     */
+    async setPassword(password: string): Promise<GameStatusCode> {
+        if (password === "") {
+            this.settings.password = "";
+        } else {
+            this.settings.password = await argon2.hash(password);
+        }
+        
         return GameStatusCode.ACTION_OK;
     }
 
@@ -799,7 +900,13 @@ export class Game extends EventEmitter {
         if (this.thereIsAGameWinner()) {
             this.winState();
         } else {
-            this.dealingState();
+            const roundIntermissionSeconds = this.getRoundIntermissionSeconds();
+            if (roundIntermissionSeconds > 0) {
+                this.event("roundIntermission", { roundIntermissionSeconds });
+                setTimeout(() => this.beginNextRound(), roundIntermissionSeconds * 1000);
+            } else {
+                this.beginNextRound();
+            }
         }
 
         return GameStatusCode.ACTION_OK;
@@ -846,9 +953,13 @@ export class Game extends EventEmitter {
         const winner = this.getGameWinner();
         this.event("gameWinner", { userId: winner.getUser().id, nickname: winner.getUser().nickname });
 
-        this.event("resetWarning", { resetInSeconds: 15 });
-
-        setTimeout(() => this.resetState, 15000);
+        const gameWinIntermissionSeconds = this.getGameWinIntermissionSeconds();
+        if (gameWinIntermissionSeconds > 0) {
+            this.event("gameWinIntermission", { gameWinIntermissionSeconds });
+            setTimeout(() => this.resetState(), gameWinIntermissionSeconds * 1000);
+        } else {
+            this.resetState();
+        }
     }
 
     /**
@@ -858,9 +969,9 @@ export class Game extends EventEmitter {
      * This state is transient and will always move 
      * to the next state.
      */
-    private resetState() {
+    private resetState(reason?: string) {
         this.state = GameState.Reset;
-        this.event("stateTransition", { to: GameState.Reset });
+        this.event("stateTransition", { to: GameState.Reset, reason });
 
         if (this.currentBlackCard) {
             this.availableBlackCards.push(this.currentBlackCard);
