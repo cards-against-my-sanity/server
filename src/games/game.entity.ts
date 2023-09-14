@@ -53,8 +53,6 @@ export class Game extends EventEmitter implements IGame {
     private readonly availableBlackCards: IBlackCard[] = [];
     private readonly discardedBlackCards: IBlackCard[] = [];
 
-
-
     constructor(hostUser: IUser) {
         super();
 
@@ -241,7 +239,9 @@ export class Game extends EventEmitter implements IGame {
 
         this.players.push(player);
 
-        this.emitPlayerJoinedGame({ gameId: this.id, player: PlayerSerializer.serialize(player) })
+        this.emitPlayerJoinedGame({ gameId: this.id, player: PlayerSerializer.serialize(player) });
+
+        this.emitSystemMessage({ gameId: this.id, content: `${user.nickname} has joined the game` });
 
         return GameStatusCode.ACTION_OK;
     }
@@ -300,6 +300,8 @@ export class Game extends EventEmitter implements IGame {
             return GameStatusCode.NOT_IN_GAME;
         }
 
+        this.emitSystemMessage({ gameId: this.id, content: `${this.players[idx].nickname} has left the game` });
+
         if (this.players.length === 1) {
             this.players.splice(0, 1);
         } else {
@@ -353,6 +355,8 @@ export class Game extends EventEmitter implements IGame {
 
         this.emitSpectatorJoinedGame({ gameId: this.id, spectator: SpectatorSerializer.serialize(spectator) });
 
+        this.emitSystemMessage({ gameId: this.id, content: `${user.nickname} has started spectating the game` });
+
         return GameStatusCode.ACTION_OK;
     }
 
@@ -400,9 +404,13 @@ export class Game extends EventEmitter implements IGame {
             return GameStatusCode.NOT_SPECTATING_GAME;
         }
 
+        this.emitSystemMessage({ gameId: this.id, content: `${this.spectators[idx].nickname} has stopped spectating the game` });
+
         this.spectators = this.spectators.filter(s => s.id !== id);
 
-        this.emitSpectatorLeftGame({ gameId: this.id, spectatorId: id })
+        this.emitSpectatorLeftGame({ gameId: this.id, spectatorId: id });
+
+        
 
         return GameStatusCode.ACTION_OK;
     }
@@ -751,6 +759,14 @@ export class Game extends EventEmitter implements IGame {
 
         this.emitStateTransition({ gameId: this.id, to: GameState.Playing, from: this.state });
         this.state = GameState.Playing;
+
+        this.players.forEach(p => {
+            if (p.state !== PlayerState.Judge) {
+                p.needToPlay = true;
+            } else {
+                p.needToPlay = false;
+            }
+        });
     }
 
     /**
@@ -789,6 +805,10 @@ export class Game extends EventEmitter implements IGame {
 
         if (player.state === PlayerState.Judge) {
             return GameStatusCode.IS_THE_JUDGE;
+        }
+
+        if (!player.needToPlay) {
+            return GameStatusCode.DO_NOT_NEED_TO_PLAY;
         }
 
         if (cards.length < this.currentBlackCard.pick) {
@@ -838,6 +858,14 @@ export class Game extends EventEmitter implements IGame {
         })
 
         this.state = GameState.Judging;
+
+        this.players.forEach(p => {
+            if (p.state !== PlayerState.Judge) {
+                p.needToPlay = false;
+            } else {
+                p.needToPlay = true;
+            }
+        });
     }
 
     /**
@@ -876,6 +904,11 @@ export class Game extends EventEmitter implements IGame {
 
         if (player.state !== PlayerState.Judge) {
             return GameStatusCode.IS_NOT_THE_JUDGE;
+        }
+
+        if (!player.needToPlay) {
+            console.error("Judge tried to play while needToPlay = false. This is probably a bug.");
+            return GameStatusCode.DO_NOT_NEED_TO_PLAY;
         }
 
         if (judgedCards.length < this.currentBlackCard.pick) {

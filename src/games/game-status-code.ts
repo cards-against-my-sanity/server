@@ -22,6 +22,7 @@ export class GameStatusCode {
     static readonly INVALID_CARDS = new GameStatusCode("The cards you specified are not valid.");
     static readonly DECK_ALREADY_ADDED = new GameStatusCode("The specified deck is already in the game.");
     static readonly DECK_NOT_IN_GAME = new GameStatusCode("The specified deck is not in the game.");
+    static readonly DO_NOT_NEED_TO_PLAY = new GameStatusCode("You don't need to play. Your action was already registered.");
 
     constructor(private readonly message: string) { }
 

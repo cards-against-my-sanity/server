@@ -7,7 +7,8 @@ export class PlayerSerializer {
             id: player.id,
             nickname: player.nickname,
             state: player.state,
-            score: player.score
+            score: player.score,
+            needToPlay: player.needToPlay
         };
     }
 }

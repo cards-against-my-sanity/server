@@ -8,6 +8,7 @@ export class Player implements IPlayer {
     nickname: string;
     state: PlayerState;
     score: number;
+    needToPlay: boolean;
     private hand: IWhiteCard[];
 
     constructor(user: IUser) {
@@ -15,6 +16,7 @@ export class Player implements IPlayer {
         this.nickname = user.nickname;
         this.state = PlayerState.Player;
         this.score = 0;
+        this.needToPlay = false;
         this.hand = [];
     }
 
