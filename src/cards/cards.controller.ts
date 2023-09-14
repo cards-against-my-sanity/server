@@ -4,14 +4,14 @@ import { HasPermissions } from 'src/permission/permissions.decorator';
 import { Permission } from 'src/permission/permission.class';
 import { RequiredQuery } from 'src/util/decorator/required-query.decorator';
 import { DecksService } from 'src/decks/decks.service';
-import { CreateBlackCardDto } from './dto/create-black-card.dto';
-import { CreateWhiteCardDto } from './dto/create-white-card.dto';
 import { UpdateWhiteCardDto } from './dto/update-white-card.dto';
 import { UpdateBlackCardDto } from './dto/update-black-card.dto';
 import PaginatedWhiteCardsPayload from 'src/shared-types/card/white/paginated-white-cards.payload';
 import PaginatedBlackCardsPayload from 'src/shared-types/card/black/paginated-black-cards.payload';
 import IWhiteCard from 'src/shared-types/card/white/white-card.interface';
 import IBlackCard from 'src/shared-types/card/black/black-card.interface';
+import CreateWhiteCardDto from './dto/create-white-card.dto';
+import CreateBlackCardDto from './dto/create-black-card.dto';
 
 @Controller('cards')
 export class CardsController {

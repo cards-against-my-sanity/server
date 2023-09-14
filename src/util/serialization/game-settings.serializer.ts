@@ -9,8 +9,7 @@ export class GameSettingsSerializer {
             maxScore: settings.maxScore,
             roundIntermissionSeconds: settings.roundIntermissionSeconds,
             gameWinIntermissionSeconds: settings.gameWinIntermissionSeconds,
-            allowPlayersToJoinMidGame: settings.allowPlayersToJoinMidGame,
-            hasPassword: settings.password != ""
+            allowPlayersToJoinMidGame: settings.allowPlayersToJoinMidGame
         };
     }
 }

@@ -4,12 +4,12 @@ import { Repository } from 'typeorm';
 import { DecksService } from 'src/decks/decks.service';
 import { WhiteCard } from './entities/white-card.entity';
 import { BlackCard } from './entities/black-card.entity';
-import { CreateBlackCardDto } from './dto/create-black-card.dto';
 import { UpdateWhiteCardDto } from './dto/update-white-card.dto';
-import { CreateWhiteCardDto } from './dto/create-white-card.dto';
 import { UpdateBlackCardDto } from './dto/update-black-card.dto';
 import IBlackCard from 'src/shared-types/card/black/black-card.interface';
 import IWhiteCard from 'src/shared-types/card/white/white-card.interface';
+import CreateWhiteCardDto from './dto/create-white-card.dto';
+import CreateBlackCardDto from './dto/create-black-card.dto';
 
 @Injectable()
 export class CardsService {
@@ -78,11 +78,11 @@ export class CardsService {
   }
 
   async createWhiteCard(dto: CreateWhiteCardDto): Promise<void> {
-    if (!Array.isArray(dto.deck_ids)) {
-      dto.deck_ids = [dto.deck_ids];
+    if (!Array.isArray(dto.deckIds)) {
+      dto.deckIds = [dto.deckIds];
     }
 
-    const decks = await Promise.all(dto.deck_ids.map(id => this.decksService.findOne(id)));
+    const decks = await Promise.all(dto.deckIds.map(id => this.decksService.findOne(id)));
     if (decks.some(d => !d)) {
       throw new NotFoundException("one of the decks specified was not valid");
     }
@@ -95,11 +95,11 @@ export class CardsService {
   }
 
   async createBlackCard(dto: CreateBlackCardDto): Promise<void> {
-    if (!Array.isArray(dto.deck_ids)) {
-      dto.deck_ids = [dto.deck_ids];
+    if (!Array.isArray(dto.deckIds)) {
+      dto.deckIds = [dto.deckIds];
     }
 
-    const decks = await Promise.all(dto.deck_ids.map(id => this.decksService.findOne(id)));
+    const decks = await Promise.all(dto.deckIds.map(id => this.decksService.findOne(id)));
     if (decks.some(d => !d)) {
       throw new NotFoundException("one of the decks specified was not valid");
     }
@@ -119,12 +119,12 @@ export class CardsService {
       throw new NotFoundException("card not found");
     }
 
-    if (dto.deck_ids) {
-      if (!Array.isArray(dto.deck_ids)) {
-        dto.deck_ids = [dto.deck_ids];
+    if (dto.deckIds) {
+      if (!Array.isArray(dto.deckIds)) {
+        dto.deckIds = [dto.deckIds];
       }
 
-      const decks = await Promise.all(dto.deck_ids.map(id => this.decksService.findOne(id)));
+      const decks = await Promise.all(dto.deckIds.map(id => this.decksService.findOne(id)));
       if (decks.some(d => !d)) {
         throw new NotFoundException("one of the decks specified was not valid");
       }
@@ -146,12 +146,12 @@ export class CardsService {
       throw new NotFoundException("card not found");
     }
 
-    if (dto.deck_ids) {
-      if (!Array.isArray(dto.deck_ids)) {
-        dto.deck_ids = [dto.deck_ids];
+    if (dto.deckIds) {
+      if (!Array.isArray(dto.deckIds)) {
+        dto.deckIds = [dto.deckIds];
       }
 
-      const decks = await Promise.all(dto.deck_ids.map(id => this.decksService.findOne(id)));
+      const decks = await Promise.all(dto.deckIds.map(id => this.decksService.findOne(id)));
       if (decks.some(d => !d)) {
         throw new NotFoundException("one of the decks specified was not valid");
       }
