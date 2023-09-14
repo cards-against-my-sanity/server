@@ -603,39 +603,27 @@ export class Game extends EventEmitter implements IGame {
      *          ACTION_OK: if the game has been started
      */
     start(): GameStatusCode {
-        console.log('internal start game called')
         if (this.state !== GameState.Lobby) {
             return GameStatusCode.NOT_IN_LOBBY_STATE;
         }
-
-        console.log('ok good state')
 
         if (this.players.length < Game.MINIMUM_PLAYERS) {
             return GameStatusCode.NOT_ENOUGH_PLAYERS;
         }
 
-        console.log('ok good players')
-
         if (this.availableBlackCards.length < Game.MINIMUM_BLACK_CARDS) {
             return GameStatusCode.NOT_ENOUGH_BLACK_CARDS;
         }
-
-        console.log('ok good black cards')
 
         if (this.availableWhiteCards.length < (Game.MINIMUM_WHITE_CARDS_PER_PLAYER * this.players.length)) {
             return GameStatusCode.NOT_ENOUGH_WHITE_CARDS;
         }
 
-        console.log('ok good white cards; starting...');
-
         this.emitSystemMessage({ gameId: this.id, content: "The game has been started. GLHF!" });
-
-        console.log('creating starting judge position')
 
         const initialJudgeIdx = Math.floor(Math.random() * (this.players.length - 1));
         this.players[initialJudgeIdx].state = PlayerState.Judge;
 
-        console.log('beginning round.')
         this.beginNextRound();
 
         return GameStatusCode.ACTION_OK;
@@ -1114,7 +1102,7 @@ export class Game extends EventEmitter implements IGame {
         this.event("illegalStateTransition", payload);
     }
 
-    private event(name: string, payload: any) {
-        this.emit(name, { ...payload, event: name });
+    private event(event: string, payload: any) {
+        this.emit(event, { ...payload, event });
     }
 }

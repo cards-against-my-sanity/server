@@ -71,13 +71,10 @@ export class GamesService extends EventEmitter {
      *          ACTION_OK: if the game has been started
      */
     async startGame(id: string): Promise<GameStatusCode> {
-        console.log('start game called')
         const game = this.getGame(id);
         if (!game) {
             return GameStatusCode.UNKNOWN_GAME;
         }
-
-        console.log('collecting cards')
 
         const { black, white } = (await Promise.all(game.getDecks()
             .map(async (deck) => ({
@@ -90,8 +87,6 @@ export class GamesService extends EventEmitter {
             }), { black: [], white: [] });
 
         game.setCards(black, white);
-
-        console.log('forwarding game start')
 
         return game.start();
     }
@@ -381,6 +376,6 @@ export class GamesService extends EventEmitter {
      *                contextual basis
      */
     private forwardEvent(payload: Record<string, any>) {
-        this.emit(payload.name, { ...payload });
+        this.emit(payload.event, { ...payload });
     }
 }

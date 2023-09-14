@@ -39,6 +39,7 @@ import PlayerIdPayload from 'src/shared-types/game/player/player-id.payload';
 import WhiteCardsMatrixPayload from 'src/shared-types/card/white/white-cards-matrix.payload';
 import MessagePayload from 'src/shared-types/game/component/message/message.payload';
 import IMessage from 'src/shared-types/game/component/message/message.interface';
+import ContentPayload from 'src/shared-types/game/component/content.payload';
 
 @WebSocketGateway({
   cors: {
@@ -673,13 +674,11 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * 
    * @param payload the system message information
    */
-  private handleSystemMessage(payload: GameIdPayload & MessagePayload) {
-    console.log("sending system message");
-    console.log(payload);
+  private handleSystemMessage(payload: GameIdPayload & ContentPayload) {
     SocketResponseBuilder.start<IMessage>()
       .data({
         type: 'system',
-        content: payload.message.content,
+        content: payload.content,
         timestamp: new Date().getTime()
       })
       .channel("systemMessage")
