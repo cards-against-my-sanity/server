@@ -1,13 +1,10 @@
-import { GameState } from "../../../cams-types/game/game-state.enum";
 import { Player } from "./player.entity";
-import { PlayerState } from "../../../cams-types/game/player/player-state.enum";
 import { v4 as uuidv4 } from 'uuid';
 import { Deck } from "src/decks/entities/deck.entity";
 import { GameStatusCode } from "./game-status-code";
 import { EventEmitter } from "stream";
 import { Spectator } from "./spectator.entity";
 import { GameSettings } from "./game-settings";
-import * as argon2 from 'argon2';
 import { ArrayShuffler } from "src/util/misc/array-shuffler";
 import { PlayerSerializer } from "src/util/serialization/player.serializer";
 import { SpectatorSerializer } from "src/util/serialization/spectator.serializer";
@@ -27,6 +24,8 @@ import BlackCardPayload from "src/shared-types/card/black/black-card.payload";
 import WhiteCardsPayload from "src/shared-types/card/white/white-cards.payload";
 import IWhiteCard from "src/shared-types/card/white/white-card.interface";
 import IBlackCard from "src/shared-types/card/black/black-card.interface";
+import { GameState } from "src/shared-types/game/game-state.enum";
+import { PlayerState } from "src/shared-types/game/player/player-state.enum";
 
 export class Game extends EventEmitter implements IGame {
     static readonly MINIMUM_PLAYERS = 3;
