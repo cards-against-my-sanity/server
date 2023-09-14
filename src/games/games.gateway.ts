@@ -31,11 +31,16 @@ import PartialSpectatorPayload from 'src/shared-types/game/spectator/partial-spe
 import DecksPayload from 'src/shared-types/deck/decks.payload';
 import IGame from 'src/shared-types/game/game.interface';
 import { IChatMessage } from 'src/shared-types/game/component/message/chat-message.interface';
-import { MessageType } from 'src/shared-types/game/component/message/message-type.enum';
 import WhiteCardPayload from 'src/shared-types/card/white/white-card.payload';
 import BlackCardPayload from 'src/shared-types/card/black/black-card.payload';
 import WhiteCardsPayload from 'src/shared-types/card/white/white-cards.payload';
 import CardIdsPayload from 'src/shared-types/card/id/card-ids.payload';
+import PlayerPayload from 'src/shared-types/game/player/player.payload';
+import SpectatorPayload from 'src/shared-types/game/spectator/spectator.payload';
+import SpectatorIdPayload from 'src/shared-types/game/spectator/spectator-id.payload';
+import PlayerIdPayload from 'src/shared-types/game/player/player-id.payload';
+import SystemMessagePayload from 'src/shared-types/game/component/message/system-message.payload';
+import ISystemMessage from 'src/shared-types/game/component/message/system-message.interface';
 
 @WebSocketGateway({
   cors: {
@@ -59,6 +64,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     service.on('gameRemoved', this.handleGameRemoved.bind(this));
     service.on('spectatorJoinedGame', this.handleSpectatorJoinedGame.bind(this));
     service.on('spectatorLeftGame', this.handleSpectatorLeftGame.bind(this));
+    service.on('systemMessage', this.handleSystemMessage.bind(this));
     service.on('beginNextRound', this.handleBeginNextRound.bind(this));
     service.on('dealCardToPlayer', this.handleDealCardToPlayer.bind(this));
     service.on('dealBlackCard', this.handleDealBlackCard.bind(this));
@@ -520,7 +526,6 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     SocketResponseBuilder.start<IChatMessage>()
       .channel("chat")
       .data({
-        type: MessageType.Chat,
         content: message,
         context: {
           player: {
@@ -609,8 +614,8 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * 
    * @param payload the game and player information
    */
-  private handlePlayerJoinedGame(payload: GameIdPayload & PartialPlayerPayload): void {
-    SocketResponseBuilder.start<GameIdPayload & PartialPlayerPayload>()
+  private handlePlayerJoinedGame(payload: GameIdPayload & PlayerPayload): void {
+    SocketResponseBuilder.start<GameIdPayload & PlayerPayload>()
       .data(payload)
       .channel("playerJoined")
       .build()
@@ -625,8 +630,8 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * 
    * @param payload the game and player information
    */
-  private handlePlayerLeftGame(payload: GameIdPayload & PartialPlayerPayload): void {
-    SocketResponseBuilder.start<GameIdPayload & PartialPlayerPayload>()
+  private handlePlayerLeftGame(payload: GameIdPayload & PlayerIdPayload): void {
+    SocketResponseBuilder.start<GameIdPayload & PlayerIdPayload>()
       .data(payload)
       .channel("playerLeft")
       .build()
@@ -654,7 +659,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * 
    * @param payload the game and spectator information
    */
-  private handleSpectatorJoinedGame(payload: GameIdPayload & PartialSpectatorPayload) {
+  private handleSpectatorJoinedGame(payload: GameIdPayload & SpectatorPayload) {
     SocketResponseBuilder.start<GameIdPayload & PartialSpectatorPayload>()
       .data(payload)
       .channel("spectatorJoined")
@@ -670,8 +675,8 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * 
    * @param payload the game and player information
    */
-  private handleSpectatorLeftGame(payload: GameIdPayload & PartialSpectatorPayload) {
-    SocketResponseBuilder.start<GameIdPayload & PartialSpectatorPayload>()
+  private handleSpectatorLeftGame(payload: GameIdPayload & SpectatorIdPayload) {
+    SocketResponseBuilder.start<GameIdPayload & SpectatorIdPayload>()
       .data(payload)
       .channel("spectatorLeft")
       .build()
@@ -679,6 +684,19 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
         GameChannel.GAME_BROWSER,
         GameChannel.GAME_ROOM(payload.gameId)
       ]);
+  }
+
+  /**
+   * Handles a system message broadcast
+   * 
+   * @param payload the system message information
+   */
+  private handleSystemMessage(payload: GameIdPayload & SystemMessagePayload) {
+    SocketResponseBuilder.start<ISystemMessage>()
+      .data(payload.message)
+      .channel("systemMessage")
+      .build()
+      .emitToRoom(this.server, GameChannel.GAME_ROOM(payload.gameId));
   }
 
   /**

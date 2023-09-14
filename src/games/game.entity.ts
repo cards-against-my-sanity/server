@@ -26,6 +26,11 @@ import IWhiteCard from "src/shared-types/card/white/white-card.interface";
 import IBlackCard from "src/shared-types/card/black/black-card.interface";
 import { GameState } from "src/shared-types/game/game-state.enum";
 import { PlayerState } from "src/shared-types/game/player/player-state.enum";
+import PlayerPayload from "src/shared-types/game/player/player.payload";
+import SpectatorPayload from "src/shared-types/game/spectator/spectator.payload";
+import PlayerIdPayload from "src/shared-types/game/player/player-id.payload";
+import SpectatorIdPayload from "src/shared-types/game/spectator/spectator-id.payload";
+import SystemMessagePayload from "src/shared-types/game/component/message/system-message.payload";
 
 export class Game extends EventEmitter implements IGame {
     static readonly MINIMUM_PLAYERS = 3;
@@ -314,7 +319,7 @@ export class Game extends EventEmitter implements IGame {
             this.resetState(GameStatusCode.NOT_ENOUGH_PLAYERS.getMessage());
         }
 
-        this.emitPlayerLeftGame({ gameId: this.id, player: { id } });
+        this.emitPlayerLeftGame({ gameId: this.id, playerId: id });
 
         if (this.players.length === 0) {
             this.emitGameEmpty({ gameId: this.id });
@@ -395,7 +400,7 @@ export class Game extends EventEmitter implements IGame {
 
         this.spectators = this.spectators.filter(s => s.id !== id);
 
-        this.emitSpectatorLeftGame({ gameId: this.id, spectator: { id } })
+        this.emitSpectatorLeftGame({ gameId: this.id, spectatorId: id })
 
         return GameStatusCode.ACTION_OK;
     }
@@ -1040,11 +1045,11 @@ export class Game extends EventEmitter implements IGame {
 
     /** Game Events */
 
-    private emitPlayerJoinedGame(payload: GameIdPayload & PartialPlayerPayload) {
+    private emitPlayerJoinedGame(payload: GameIdPayload & PlayerPayload) {
         this.event("playerJoinedGame", payload);
     }
 
-    private emitPlayerLeftGame(payload: GameIdPayload & PartialPlayerPayload) {
+    private emitPlayerLeftGame(payload: GameIdPayload & PlayerIdPayload) {
         this.event("playerLeftGame", payload);
     }
 
@@ -1052,12 +1057,16 @@ export class Game extends EventEmitter implements IGame {
         this.event("gameEmpty", payload);
     }
 
-    private emitSpectatorJoinedGame(payload: GameIdPayload & PartialSpectatorPayload) {
+    private emitSpectatorJoinedGame(payload: GameIdPayload & SpectatorPayload) {
         this.event("spectatorJoinedGame", payload);
     }
 
-    private emitSpectatorLeftGame(payload: GameIdPayload & PartialSpectatorPayload) {
+    private emitSpectatorLeftGame(payload: GameIdPayload & SpectatorIdPayload) {
         this.event("spectatorLeftGame", payload);
+    }
+
+    private emitSystemMessage(payload: GameIdPayload & SystemMessagePayload) {
+        this.event("systemMessage", payload);
     }
 
     private emitBeginNextRound(payload: GameIdPayload & JudgeIdPayload & RoundNumberPayload) {
