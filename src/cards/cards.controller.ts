@@ -2,7 +2,7 @@ import { BadRequestException, Body, Controller, Delete, Get, NotFoundException, 
 import { CardsService } from './cards.service';
 import { HasPermissions } from 'src/permission/permissions.decorator';
 import { Permission } from 'src/permission/permission.class';
-import { RequiredQuery } from 'src/util/required-query.decorator';
+import { RequiredQuery } from 'src/util/decorator/required-query.decorator';
 import { DecksService } from 'src/decks/decks.service';
 import { CardType } from './card-type.enum';
 import { CreateBlackCardDto } from './dto/create-black-card.dto';

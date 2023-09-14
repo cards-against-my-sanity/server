@@ -1,8 +1,9 @@
 import { Deck } from "src/decks/entities/deck.entity";
+import { IBlackCard } from "src/shared-types/card/black-card.interface";
 import { Column, Entity, JoinTable, ManyToMany, PrimaryGeneratedColumn } from "typeorm";
 
 @Entity()
-export class BlackCard {
+export class BlackCard implements IBlackCard {
     @PrimaryGeneratedColumn('uuid')
     id: string
 

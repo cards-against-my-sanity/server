@@ -1,7 +1,8 @@
-import { GameSettings } from "src/games/game_settings";
+import { GameSettings } from "src/games/game-settings";
+import IGameSettings from "src/shared-types/game/game-settings.interface";
 
 export class GameSettingsSerializer {
-    static serialize(settings: GameSettings): Record<string, any> {
+    static serialize(settings: GameSettings): IGameSettings {
         return {
             maxPlayers: settings.maxPlayers,
             maxSpectators: settings.maxSpectators,

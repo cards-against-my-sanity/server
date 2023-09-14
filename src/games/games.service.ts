@@ -5,6 +5,7 @@ import { User } from 'src/users/entities/user.entity';
 import { EventEmitter } from 'stream';
 import { GameStatusCode } from './game-status-code';
 import { CardsService } from 'src/cards/cards.service';
+import GameIdPayload from 'src/shared-types/game/game-id.payload';
 
 @Injectable()
 export class GamesService extends EventEmitter {
@@ -31,21 +32,22 @@ export class GamesService extends EventEmitter {
         }
 
         const game = new Game(host);
-        
+
         game.on('playerJoinedGame', this.forwardEvent.bind(this));
         game.on('playerLeftGame', this.forwardEvent.bind(this));
+        game.on('gameEmpty', this.handleGameEmpty.bind(this));
         game.on('spectatorJoinedGame', this.forwardEvent.bind(this));
         game.on('spectatorLeftGame', this.forwardEvent.bind(this));
-        game.on('gameStarted', this.forwardEvent.bind(this));
         game.on('beginNextRound', this.forwardEvent.bind(this));
         game.on('dealCardToPlayer', this.forwardEvent.bind(this));
         game.on('dealBlackCard', this.forwardEvent.bind(this));
         game.on('roundWinner', this.forwardEvent.bind(this));
         game.on('gameWinner', this.forwardEvent.bind(this));
-        game.on('resetWarning', this.forwardEvent.bind(this));
-        game.on('illegalStateTransition', this.forwardEvent.bind(this));
+        game.on('roundIntermission', this.forwardEvent.bind(this));
+        game.on('gameWinIntermission', this.forwardEvent.bind(this));
         game.on('stateTransition', this.forwardEvent.bind(this));
-        
+        game.on('illegalStateTransition', this.forwardEvent.bind(this));
+
         this.games.push(game);
         return game;
     }
@@ -117,6 +119,37 @@ export class GamesService extends EventEmitter {
      */
     getGameHostedBy(user: User): Game {
         return this.games.find(g => g.getHost().id === user.id);
+    }
+
+    /**
+     * Gets the Game, if any, that has the given User as a player
+     * 
+     * @param user the User playing the game
+     * @returns the Game the User is playing
+     */
+    getGameWithPlayer(user: User): Game {
+        return this.games.find(g => g.hasPlayer(user.id));
+    }
+
+    /**
+     * Gets the Game, if any, that has the given User as a spectator
+     * 
+     * @param user the User spectating the game
+     * @returns the Game the User is spectating
+     */
+    getGameWithSpectator(user: User): Game {
+        return this.games.find(g => g.hasSpectator(user.id));
+    }
+
+    /**
+     * Gets the Game, if any, that has the given User as a player
+     * or spectator
+     * 
+     * @param user the User playing or spectating the game
+     * @returns the Game the User is playing or spectating
+     */
+    getGameWithPlayerOrSpectator(user: User): Game {
+        return this.games.find(g => g.hasPlayer(user.id) || g.hasSpectator(user.id));
     }
 
     /**
@@ -277,7 +310,7 @@ export class GamesService extends EventEmitter {
         if (!game) {
             return GameStatusCode.UNKNOWN_GAME;
         }
-        
+
         if (this.games.some(g => g.hasSpectator(user.id))) {
             return GameStatusCode.ALREADY_SPECTATING;
         }
@@ -321,6 +354,18 @@ export class GamesService extends EventEmitter {
      */
     removeGame(id: string) {
         this.games = this.games.filter(g => g.getId() !== id);
+    }
+
+    /**
+     * When a game emits that it is empty, the game is
+     * removed by the service and then the service forwards
+     * the 'gameRemoved' event.
+     * 
+     * @param payload the game empty payload
+     */
+    private handleGameEmpty(payload: GameIdPayload) {
+        this.removeGame(payload.gameId);
+        this.forwardEvent({ ...payload, name: 'gameRemoved' });
     }
 
     /**

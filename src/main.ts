@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
-import { InstanceToPlainInterceptor } from './util/instance-to-plain.interceptor';
+import { InstanceToPlainInterceptor } from './util/interceptor/instance-to-plain.interceptor';
 import * as cookieParser from 'cookie-parser';
 import { ConfigService } from '@nestjs/config';
 

@@ -1,8 +1,9 @@
 import { Deck } from "src/decks/entities/deck.entity";
-import { Column, Entity, JoinTable, ManyToMany, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
+import IWhiteCard from "src/shared-types/card/white-card.interface";
+import { Column, Entity, JoinTable, ManyToMany, PrimaryGeneratedColumn } from "typeorm";
 
 @Entity()
-export class WhiteCard {
+export class WhiteCard implements IWhiteCard {
     @PrimaryGeneratedColumn('uuid')
     id: string
 

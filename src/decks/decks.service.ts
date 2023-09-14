@@ -4,7 +4,6 @@ import { Deck } from './entities/deck.entity';
 import { CreateDeckDto } from './dto/create-deck.dto';
 import { UpdateDeckDto } from './dto/update-deck.dto';
 import { Repository } from 'typeorm';
-import { CardsService } from 'src/cards/cards.service';
 
 @Injectable()
 export class DecksService {

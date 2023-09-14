@@ -1,9 +1,12 @@
+import ISpectator from "src/shared-types/game/spectator/spectator.interface";
 import { User } from "src/users/entities/user.entity";
 
-export class Spectator {
-    constructor(private readonly user: User) {}
+export class Spectator implements ISpectator {
+    id: string;
+    nickname: string;
 
-    getUser(): User {
-        return this.user;
+    constructor(user: User) {
+        this.id = user.id;
+        this.nickname = user.nickname;
     }
 }

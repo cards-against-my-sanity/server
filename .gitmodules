@@ -1,0 +1,3 @@
+[submodule "src/shared-types"]
+	path = src/shared-types
+	url = git@github.com:cards-against-my-sanity/types.git

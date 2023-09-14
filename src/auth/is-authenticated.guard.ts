@@ -2,7 +2,6 @@ import { CanActivate, ExecutionContext, Injectable } from "@nestjs/common";
 import { Request } from "express";
 import { Observable } from "rxjs";
 import { Socket } from "socket.io";
-import { User } from "src/users/entities/user.entity";
 
 /**
  * Ensures the presence of a user object on the http request 

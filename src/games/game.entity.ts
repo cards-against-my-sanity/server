@@ -1,6 +1,6 @@
-import { GameState } from "./game-state.enum";
+import { GameState } from "../../../cams-types/game/game-state.enum";
 import { Player } from "./player.entity";
-import { PlayerState } from "./player-state.enum";
+import { PlayerState } from "../../../cams-types/game/player/player-state.enum";
 import { v4 as uuidv4 } from 'uuid';
 import { WhiteCard } from "src/cards/entities/white-card.entity";
 import { BlackCard } from "src/cards/entities/black-card.entity";
@@ -9,11 +9,21 @@ import { GameStatusCode } from "./game-status-code";
 import { EventEmitter } from "stream";
 import { User } from "src/users/entities/user.entity";
 import { Spectator } from "./spectator.entity";
-import { GameSettings } from "./game_settings";
-import { ArrayShuffler } from "src/util/array-shuffler";
-import { PlayerSerializer } from "src/util/player.serializer";
-import { SpectatorSerializer } from "src/util/spectator.serializer";
+import { GameSettings } from "./game-settings";
 import * as argon2 from 'argon2';
+import { ArrayShuffler } from "src/util/misc/array-shuffler";
+import { PlayerSerializer } from "src/util/serialization/player.serializer";
+import { SpectatorSerializer } from "src/util/serialization/spectator.serializer";
+import GameIdPayload from "src/shared-types/game/game-id.payload";
+import RoundNumberPayload from "src/shared-types/game/component/round-number.payload";
+import JudgeIdPayload from "src/shared-types/game/component/judge-id.payload";
+import WhiteCardPayload from "src/shared-types/card/white-card.payload";
+import BlackCardPayload from "src/shared-types/card/black-card.payload";
+import WhiteCardsPayload from "src/shared-types/card/white-cards.payload";
+import SecondsPayload from "src/shared-types/game/component/seconds.payload";
+import StateTransitionPayload from "src/shared-types/game/component/state-transition.payload";
+import PartialPlayerPayload from "src/shared-types/game/player/partial-player.payload";
+import PartialSpectatorPayload from "src/shared-types/game/spectator/partial-spectator.payload";
 
 export class Game extends EventEmitter {
     static readonly MINIMUM_PLAYERS = 3;
@@ -220,7 +230,7 @@ export class Game extends EventEmitter {
 
         this.players.push(player);
 
-        this.event('playerJoinedGame', { player: PlayerSerializer.serialize(player) });
+        this.emitPlayerJoinedGame({ gameId: this.id, player: PlayerSerializer.serialize(player) })
 
         return GameStatusCode.ACTION_OK;
     }
@@ -231,7 +241,7 @@ export class Game extends EventEmitter {
      * @returns the plaeyr or undefined
      */
     getPlayer(id: string): Player {
-        return this.players.find(p => p.getUser().id === id);
+        return this.players.find(p => p.id === id);
     }
 
     /**
@@ -274,7 +284,7 @@ export class Game extends EventEmitter {
      *          removed
      */
     removePlayer(id: string): GameStatusCode {
-        const idx = this.players.findIndex(p => p.getUser().id === id);
+        const idx = this.players.findIndex(p => p.id === id);
         if (idx === -1) {
             return GameStatusCode.NOT_IN_GAME;
         }
@@ -284,21 +294,25 @@ export class Game extends EventEmitter {
         } else {
             const nextPlayerIndex = (idx + 1) % this.players.length;
 
-            if (this.players[idx].getState() === PlayerState.Judge) {
-                this.players[nextPlayerIndex].setState(PlayerState.Judge);
+            if (this.players[idx].state === PlayerState.Judge) {
+                this.players[nextPlayerIndex].state = PlayerState.Judge;
             }
 
             this.players.splice(idx, 1);
         }
 
         if (this.getHost().id === id) {
+            this.emitStateTransition({ gameId: this.id, to: GameState.Abandoned, from: this.state, context: null });
             this.state = GameState.Abandoned;
-            this.event('stateTransition', { to: GameState.Abandoned });
         } else if (this.players.length < Game.MINIMUM_PLAYERS) {
             this.resetState(GameStatusCode.NOT_ENOUGH_PLAYERS.getMessage());
         }
 
-        this.event('playerLeftGame', { id })
+        this.emitPlayerLeftGame({ gameId: this.id, player: { id }});
+
+        if (this.players.length === 0) {
+            this.emitGameEmpty({ gameId: this.id });
+        }
 
         return GameStatusCode.ACTION_OK;
     }
@@ -324,7 +338,7 @@ export class Game extends EventEmitter {
 
         this.spectators.push(spectator);
 
-        this.event('spectatorJoinedGame', { spectator: SpectatorSerializer.serialize(spectator) });
+        this.emitSpectatorJoinedGame({ gameId: this.id, spectator: SpectatorSerializer.serialize(spectator) });
 
         return GameStatusCode.ACTION_OK;
     }
@@ -343,7 +357,7 @@ export class Game extends EventEmitter {
      * @param id the id of the User to check
      */
     hasSpectator(id: string): boolean {
-        return this.spectators.map(s => s.getUser().id).includes(id);
+        return this.spectators.map(s => s.id).includes(id);
     }
 
     /**
@@ -368,14 +382,14 @@ export class Game extends EventEmitter {
      *          removed
      */
     removeSpectator(id: string): GameStatusCode {
-        const idx = this.spectators.findIndex(s => s.getUser().id === id);
+        const idx = this.spectators.findIndex(s => s.id === id);
         if (idx === -1) {
             return GameStatusCode.NOT_SPECTATING_GAME;
         }
 
-        this.spectators = this.spectators.filter(s => s.getUser().id !== id);
+        this.spectators = this.spectators.filter(s => s.id !== id);
 
-        this.event('spectatorLeftGame', { id });
+        this.emitSpectatorLeftGame({ gameId: this.id, spectator: { id }})
 
         return GameStatusCode.ACTION_OK;
     }
@@ -619,7 +633,7 @@ export class Game extends EventEmitter {
         }
 
         const initialJudgeIdx = Math.floor(Math.random() * (this.players.length - 1));
-        this.players[initialJudgeIdx].setState(PlayerState.Judge);
+        this.players[initialJudgeIdx].state = PlayerState.Judge;
 
         this.beginNextRound();
 
@@ -637,12 +651,12 @@ export class Game extends EventEmitter {
      *          ACTION_OK: if the game has been forced into
      *          the reset state
      */
-    stop(): GameStatusCode {
+    stop(reason?: string): GameStatusCode {
         if (this.state === GameState.Lobby) {
             return GameStatusCode.NOT_IN_PROGRESS;
         }
 
-        this.resetState();
+        this.resetState(reason ? reason : 'Game stopped by the host');
         return GameStatusCode.ACTION_OK;
     }
 
@@ -657,7 +671,7 @@ export class Game extends EventEmitter {
 
         this.roundNumber++;
 
-        this.event("beginNextRound", { round: this.roundNumber, judgeUserId: this.players[judgeIdx].getUser().id });
+        this.emitBeginNextRound({ gameId: this.id, judgeId: this.players[judgeIdx].id, roundNumber: this.roundNumber });
 
         this.dealingState();
     }
@@ -673,13 +687,13 @@ export class Game extends EventEmitter {
      */
     private dealingState() {
         if (this.state !== GameState.Lobby && this.state !== GameState.Judging) {
-            this.event("illegalStateTransition", { from: this.state, to: GameState.Dealing });
+            this.emitIllegalStateTransition({ gameId: this.id, to: GameState.Dealing, from: this.state });
             this.resetState();
             return;
         }
 
+        this.emitStateTransition({ gameId: this.id, to: GameState.Dealing, from: this.state, context: null });
         this.state = GameState.Dealing;
-        this.event("stateTransition", { to: GameState.Dealing });
 
         // discard last round's white cards (if any)
         this.playedWhiteCards.forEach((cards) => this.discardedWhiteCards.push(...cards));
@@ -704,7 +718,8 @@ export class Game extends EventEmitter {
                 }
 
                 player.dealCard(nextWhiteCard);
-                this.event("dealCardToPlayer", { userId: player.getUser().id, card: nextWhiteCard });
+
+                this.emitDealCardToPlayer({ card: nextWhiteCard, gameId: this.id, player: { id: player.id }});
             }
         });
 
@@ -720,7 +735,8 @@ export class Game extends EventEmitter {
             }
 
             this.currentBlackCard = nextBlackCard;
-            this.event("dealBlackCard", { card: nextBlackCard });
+
+            this.emitDealBlackCard({ card: nextBlackCard, gameId: this.id });
         }
 
         this.playingState();
@@ -736,15 +752,13 @@ export class Game extends EventEmitter {
      */
     private playingState() {
         if (this.state !== GameState.Dealing) {
-            this.event("illegalStateTransition", { from: this.state, to: GameState.Playing });
+            this.emitIllegalStateTransition({ gameId: this.id, from: this.state, to: GameState.Playing });
             this.resetState();
             return;
         }
-
+        
+        this.emitStateTransition({ gameId: this.id, to: GameState.Playing, from: this.state, context: null });
         this.state = GameState.Playing;
-        this.event("stateTransition", { to: GameState.Playing });
-
-        // And now we wait for players to play.
     }
 
     /**
@@ -781,7 +795,7 @@ export class Game extends EventEmitter {
             return GameStatusCode.NOT_IN_PLAYING_STATE;
         }
 
-        if (player.getState() === PlayerState.Judge) {
+        if (player.state === PlayerState.Judge) {
             return GameStatusCode.IS_THE_JUDGE;
         }
         
@@ -819,18 +833,16 @@ export class Game extends EventEmitter {
      */
     private judgingState() {
         if (this.state !== GameState.Playing) {
-            this.event("illegalStateTransition", { from: this.state, to: GameState.Judging });
+            this.emitIllegalStateTransition({ gameId: this.id, from: this.state, to: GameState.Judging });
             this.resetState();
             return;
         }
 
-        this.state = GameState.Judging;
-        this.event("stateTransition", {
-            to: GameState.Judging, 
-            cardsToJudge: [...this.playedWhiteCards].map(e => e[1]) 
-        });
+        this.emitStateTransition({ gameId: this.id, to: GameState.Judging, from: this.state, context: {
+            cardsToJudge: [...this.playedWhiteCards].map(e => e[1])
+        }});
 
-        // And now we wait for the judge to...judge.
+        this.state = GameState.Judging;
     }
     
     /**
@@ -867,7 +879,7 @@ export class Game extends EventEmitter {
             return GameStatusCode.NOT_IN_JUDGING_STATE;
         }
 
-        if (player.getState() !== PlayerState.Judge) {
+        if (player.state !== PlayerState.Judge) {
             return GameStatusCode.IS_NOT_THE_JUDGE;
         }
 
@@ -889,21 +901,24 @@ export class Game extends EventEmitter {
             return GameStatusCode.INVALID_CARDS;
         }
 
-        winner[0].incrementScore();
+        winner[0].score++;
 
-        this.event('roundWinner', { 
-            userId: winner[0].getUser().id, 
-            nickname: winner[0].getUser().nickname,
-            winningCards: winner[1]
+        this.emitRoundWinner({ 
+            gameId: this.id, 
+            cards: winner[1],
+            player: { 
+                id: winner[0].id, 
+                nickname: winner[0].nickname 
+            }
         });
 
         if (this.thereIsAGameWinner()) {
             this.winState();
         } else {
-            const roundIntermissionSeconds = this.getRoundIntermissionSeconds();
-            if (roundIntermissionSeconds > 0) {
-                this.event("roundIntermission", { roundIntermissionSeconds });
-                setTimeout(() => this.beginNextRound(), roundIntermissionSeconds * 1000);
+            const seconds = this.getRoundIntermissionSeconds();
+            if (seconds > 0) {
+                this.emitRoundIntermission({ gameId: this.id, seconds });
+                setTimeout(() => this.beginNextRound(), seconds * 1000);
             } else {
                 this.beginNextRound();
             }
@@ -919,7 +934,7 @@ export class Game extends EventEmitter {
      * @returns the winning player or null
      */
     private getGameWinner(): Player {
-        return this.players.find(p => p.getScore() === this.settings.maxScore);
+        return this.players.find(p => p.score === this.settings.maxScore);
     }
 
     /**
@@ -942,21 +957,24 @@ export class Game extends EventEmitter {
      */
     private winState() {
         if (this.state !== GameState.Judging) {
-            this.event("illegalStateTransition", { from: this.state, to: GameState.Win });
+            this.emitIllegalStateTransition({ gameId: this.id, from: this.state, to: GameState.Win });
             this.resetState();
             return;
         }
 
+        this.emitStateTransition({ gameId: this.id, to: GameState.Win, from: this.state, context: null });
         this.state = GameState.Win;
-        this.event("stateTransition", { to: GameState.Win });
 
         const winner = this.getGameWinner();
-        this.event("gameWinner", { userId: winner.getUser().id, nickname: winner.getUser().nickname });
+        this.emitGameWinner({ gameId: this.id, player: {
+            id: winner.id,
+            nickname: winner.nickname
+        }});
 
-        const gameWinIntermissionSeconds = this.getGameWinIntermissionSeconds();
-        if (gameWinIntermissionSeconds > 0) {
-            this.event("gameWinIntermission", { gameWinIntermissionSeconds });
-            setTimeout(() => this.resetState(), gameWinIntermissionSeconds * 1000);
+        const seconds = this.getGameWinIntermissionSeconds();
+        if (seconds > 0) {
+            this.emitGameWinIntermission({ gameId: this.id, seconds });
+            setTimeout(() => this.resetState(), seconds * 1000);
         } else {
             this.resetState();
         }
@@ -970,8 +988,11 @@ export class Game extends EventEmitter {
      * to the next state.
      */
     private resetState(reason?: string) {
+        this.emitStateTransition({ gameId: this.id, to: GameState.Reset, from: this.state, context: {
+            reason
+        }});
+
         this.state = GameState.Reset;
-        this.event("stateTransition", { to: GameState.Reset, reason });
 
         if (this.currentBlackCard) {
             this.availableBlackCards.push(this.currentBlackCard);
@@ -992,15 +1013,15 @@ export class Game extends EventEmitter {
         this.players.forEach(p => {
             p.getHand().forEach(c => this.availableWhiteCards.push(c));
             p.clearHand();
-            p.setScore(0);
+            p.score = 0;
         });
 
         ArrayShuffler.shuffle(this.availableWhiteCards);
 
         this.roundNumber = 0;
 
+        this.emitStateTransition({ gameId: this.id, to: GameState.Lobby, from: this.state, context: null });
         this.state = GameState.Lobby;
-        this.event("stateTransition", { to: GameState.Lobby });
     }
 
     /**
@@ -1016,31 +1037,80 @@ export class Game extends EventEmitter {
      * no action occurs.
      */
     private rotateJudge(): number {
-        const currentJudgeIdx = this.players.findIndex(p => p.getState() === PlayerState.Judge);
+        const currentJudgeIdx = this.players.findIndex(p => p.state === PlayerState.Judge);
         if (currentJudgeIdx === -1) {
-            this.players[0].setState(PlayerState.Judge);
+            this.players[0].state = PlayerState.Judge;
             return 0;
         }
 
-        this.players[currentJudgeIdx].setState(PlayerState.Player);
+        this.players[currentJudgeIdx].state = PlayerState.Player;
 
         const nextJudgeIdx = (currentJudgeIdx + 1) % this.players.length;
 
-        this.players[nextJudgeIdx].setState(PlayerState.Judge);
+        this.players[nextJudgeIdx].state = PlayerState.Judge;
 
         return nextJudgeIdx;
     }
 
-    /**
-     * Emits the named event with this game's ID as payload.
-     * 
-     * @param name the name of the event
-     */
-    private event(name: string, payload?: Record<string, any>) {
-        if (payload) {
-            this.emit(name, { ...payload, name, gameId: this.id });
-        } else {
-            this.emit(name, { name, gameId: this.id });
-        }
+    /** Game Events */
+
+    private emitPlayerJoinedGame(payload: GameIdPayload & PartialPlayerPayload) {
+        this.event("playerJoinedGame", payload);
+    }
+    
+    private emitPlayerLeftGame(payload: GameIdPayload & PartialPlayerPayload) {
+        this.event("playerLeftGame", payload);
+    }
+
+    private emitGameEmpty(payload: GameIdPayload) {
+        this.event("gameEmpty", payload);
+    }
+
+    private emitSpectatorJoinedGame(payload: GameIdPayload & PartialSpectatorPayload) {
+        this.event("spectatorJoinedGame", payload);
+    }
+
+    private emitSpectatorLeftGame(payload: GameIdPayload & PartialSpectatorPayload) {
+        this.event("spectatorLeftGame", payload);
+    }
+
+    private emitBeginNextRound(payload: GameIdPayload & JudgeIdPayload & RoundNumberPayload) {
+        this.event("beginNextRound", payload);
+    }
+
+    private emitDealCardToPlayer(payload: WhiteCardPayload & GameIdPayload & PartialPlayerPayload) {
+        this.event("dealCardToPlayer", payload);
+    }
+
+    private emitDealBlackCard(payload: BlackCardPayload & GameIdPayload) {
+        this.event("dealBlackCard", payload);
+    }
+
+    private emitRoundWinner(payload: GameIdPayload & PartialPlayerPayload & WhiteCardsPayload) {
+        this.event("roundWinner", payload);
+    }
+
+    private emitGameWinner(payload: GameIdPayload & PartialPlayerPayload) {
+        this.event("gameWinner", payload);
+    }
+
+    private emitRoundIntermission(payload: SecondsPayload & GameIdPayload) {
+        this.event("roundIntermission", payload);
+    }
+
+    private emitGameWinIntermission(payload: SecondsPayload & GameIdPayload) {
+        this.event("gameWinIntermission", payload);
+    }
+
+    private emitStateTransition(payload: GameIdPayload & StateTransitionPayload<any>) {
+        this.event("stateTransition", payload);
+    }
+
+    private emitIllegalStateTransition(payload: GameIdPayload & StateTransitionPayload<null>) {
+        this.event("illegalStateTransition", payload);
+    }
+
+    private event(name: string, payload: any) {
+        this.emit(name, { ...payload, event: name });
     }
 }

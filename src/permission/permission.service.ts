@@ -3,7 +3,6 @@ import { PermissionCategory } from "src/permission/permission-category.enum";
 import { Permission } from "./permission.class";
 import { UsersService } from "src/users/users.service";
 import { User } from "src/users/entities/user.entity";
-import { UserPermission } from "src/users/entities/user-permission.entity";
 
 @Injectable()
 export class PermissionService {
