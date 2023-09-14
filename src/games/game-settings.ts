@@ -7,6 +7,4 @@ export class GameSettings implements IGameSettings {
     roundIntermissionSeconds: number = 8;
     gameWinIntermissionSeconds: number = 10;
     allowPlayersToJoinMidGame: boolean = false;
-    hasPassword: boolean;
-    password: string = "";
 }

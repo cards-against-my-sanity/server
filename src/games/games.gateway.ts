@@ -331,10 +331,6 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
       game.setAllowPlayersToJoinMidGame(settings.allowPlayersToJoinMidGame);
     }
 
-    if (ObjectUtil.notUndefOrNull(settings.password)) {
-      await game.setPassword(settings.password);
-    }
-
     SocketResponseBuilder.start<GameIdPayload & GameSettingsPayload>()
       .data({ gameId: game.getId(), settings: GameSettingsSerializer.serialize(game.getSettings()) })
       .channel('settingsUpdated')

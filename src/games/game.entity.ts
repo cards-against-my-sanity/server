@@ -565,32 +565,6 @@ export class Game extends EventEmitter implements IGame {
     }
 
     /**
-     * Gets the hash of the password that is
-     * required to join.
-     * 
-     * @returns the hash of the password
-     */
-    getPasswordHash(): string {
-        return this.settings.password;
-    }
-
-    /**
-     * Sets the password required to join.
-     * The password is hashed with argon2.
-     * 
-     * @returns ACTION_OK - the password has been set
-     */
-    async setPassword(password: string): Promise<GameStatusCode> {
-        if (password === "") {
-            this.settings.password = "";
-        } else {
-            this.settings.password = await argon2.hash(password);
-        }
-
-        return GameStatusCode.ACTION_OK;
-    }
-
-    /**
      * Gets the game settings object
      * @returns the game settings
      */
