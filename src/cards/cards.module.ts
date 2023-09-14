@@ -10,11 +10,11 @@ import { BlackCard } from './entities/black-card.entity';
 @Module({
   imports: [
     TypeOrmModule.forFeature([WhiteCard, BlackCard]),
-    PermissionModule, 
+    PermissionModule,
     DecksModule
   ],
   controllers: [CardsController],
   providers: [CardsService],
   exports: [CardsService]
 })
-export class CardsModule {}
+export class CardsModule { }

@@ -6,4 +6,4 @@ import { UsersModule } from "src/users/users.module";
     imports: [UsersModule],
     providers: [LocalAuthStrategy]
 })
-export class LocalAuthModule {}
+export class LocalAuthModule { }

@@ -3,10 +3,11 @@ import { Session } from './entities/session.entity';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from 'src/users/entities/user.entity';
+import { IUser } from 'src/shared-types/user/user.interface';
 
 @Injectable()
 export class SessionService {
-    constructor(@InjectRepository(Session) private readonly repo: Repository<Session>) {}
+    constructor(@InjectRepository(Session) private readonly repo: Repository<Session>) { }
 
     /**
      * Creates and saves a new session in the database. The created
@@ -15,7 +16,7 @@ export class SessionService {
      * @param ip the ip address to associate with the session
      * @returns the newly created session
      */
-    async createSession(user: User, ip: string): Promise<Session> {
+    async createSession(user: IUser, ip: string): Promise<Session> {
         const session = this.repo.create({
             ip,
             user
@@ -42,7 +43,7 @@ export class SessionService {
      * @returns the sessions belonging to the user, if any
      */
     findAll(user_id: string): Promise<Session[]> {
-        return this.repo.find({ where: { user: { id: user_id }}})
+        return this.repo.find({ where: { user: { id: user_id } } })
     }
 
     /**
@@ -50,7 +51,7 @@ export class SessionService {
      * 
      * @param id the id of the session to remove
      */
-    removeSession(id: string) {
+    removeSession(id: string): void {
         this.repo.delete({ id });
     }
 }

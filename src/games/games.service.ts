@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { Game } from './game.entity';
 import { DecksService } from 'src/decks/decks.service';
-import { User } from 'src/users/entities/user.entity';
 import { EventEmitter } from 'stream';
 import { GameStatusCode } from './game-status-code';
 import { CardsService } from 'src/cards/cards.service';
 import GameIdPayload from 'src/shared-types/game/game-id.payload';
+import { IUser } from 'src/shared-types/user/user.interface';
 
 @Injectable()
 export class GamesService extends EventEmitter {
@@ -26,7 +26,7 @@ export class GamesService extends EventEmitter {
      * @returns the created game or null if the user is
      *          already hosting a game
      */
-    createGame(host: User): Game {
+    createGame(host: IUser): Game {
         if (this.getGameHostedBy(host)) {
             return null;
         }
@@ -117,7 +117,7 @@ export class GamesService extends EventEmitter {
      * @param user the User hosting the game
      * @returns the Game hosted by the User if any
      */
-    getGameHostedBy(user: User): Game {
+    getGameHostedBy(user: IUser): Game {
         return this.games.find(g => g.getHost().id === user.id);
     }
 
@@ -127,7 +127,7 @@ export class GamesService extends EventEmitter {
      * @param user the User playing the game
      * @returns the Game the User is playing
      */
-    getGameWithPlayer(user: User): Game {
+    getGameWithPlayer(user: IUser): Game {
         return this.games.find(g => g.hasPlayer(user.id));
     }
 
@@ -137,7 +137,7 @@ export class GamesService extends EventEmitter {
      * @param user the User spectating the game
      * @returns the Game the User is spectating
      */
-    getGameWithSpectator(user: User): Game {
+    getGameWithSpectator(user: IUser): Game {
         return this.games.find(g => g.hasSpectator(user.id));
     }
 
@@ -148,7 +148,7 @@ export class GamesService extends EventEmitter {
      * @param user the User playing or spectating the game
      * @returns the Game the User is playing or spectating
      */
-    getGameWithPlayerOrSpectator(user: User): Game {
+    getGameWithPlayerOrSpectator(user: IUser): Game {
         return this.games.find(g => g.hasPlayer(user.id) || g.hasSpectator(user.id));
     }
 
@@ -243,7 +243,7 @@ export class GamesService extends EventEmitter {
      * 
      *          ACTION_OK: if the player has been added
      */
-    addPlayerToGame(gameId: string, user: User): GameStatusCode {
+    addPlayerToGame(gameId: string, user: IUser): GameStatusCode {
         const game = this.getGame(gameId)
         if (!game) {
             return GameStatusCode.UNKNOWN_GAME;
@@ -305,7 +305,7 @@ export class GamesService extends EventEmitter {
      * 
      *          ACTION_OK: if the player has been added
      */
-    addSpectatorToGame(gameId: string, user: User): GameStatusCode {
+    addSpectatorToGame(gameId: string, user: IUser): GameStatusCode {
         const game = this.getGame(gameId);
         if (!game) {
             return GameStatusCode.UNKNOWN_GAME;

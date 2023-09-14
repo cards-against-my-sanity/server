@@ -2,7 +2,6 @@ import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { PassportStrategy } from "@nestjs/passport";
 import { Strategy } from "passport-local";
 import { UsersService } from "src/users/users.service";
-import * as argon2 from 'argon2';
 
 @Injectable()
 export class LocalAuthStrategy extends PassportStrategy(Strategy, 'local') {
@@ -11,9 +10,8 @@ export class LocalAuthStrategy extends PassportStrategy(Strategy, 'local') {
     }
 
     async validate(username: string, password: string) {
-        const user = await this.usersService.findOneByNickname(username);
-
-        if (user && (await argon2.verify(user.hash, password + user.salt))) {
+        const user = await this.usersService.findOneByNicknameIfPasswordValid(username, password);
+        if (user) {
             return user;
         }
 

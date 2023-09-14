@@ -23,7 +23,7 @@ export class GameStatusCode {
     static readonly DECK_ALREADY_ADDED = new GameStatusCode("The specified deck is already in the game.");
     static readonly DECK_NOT_IN_GAME = new GameStatusCode("The specified deck is not in the game.");
 
-    constructor(private readonly message: string) {}
+    constructor(private readonly message: string) { }
 
     getMessage() {
         return this.message;

@@ -1,11 +1,11 @@
 import { Socket } from "socket.io"
-import { User } from "src/users/entities/user.entity"
+import { IUser } from "src/shared-types/user/user.interface"
 
 declare module 'socket.io' {
     interface Socket {
         session: {
             id: string,
-            user: User
+            user: IUser
         }
     }
 }

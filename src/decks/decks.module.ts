@@ -11,4 +11,4 @@ import { PermissionModule } from 'src/permission/permission.module';
   providers: [DecksService],
   exports: [DecksService]
 })
-export class DecksModule {}
+export class DecksModule { }

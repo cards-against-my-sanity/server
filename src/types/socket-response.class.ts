@@ -7,7 +7,7 @@ export default class SocketResponse<T> {
     private data: T | null = null;
     private channel: string | null = null;
 
-    constructor() {}
+    constructor() { }
 
     setStatus(status: "ok" | "error"): void {
         this.status = status;

@@ -3,13 +3,13 @@ import { Reflector } from '@nestjs/core';
 import { Permission } from 'src/permission/permission.class';
 import { PERMISSIONS_KEY } from './permissions.decorator';
 import { PermissionService } from 'src/permission/permission.service';
-import { User } from 'src/users/entities/user.entity';
 import { Socket } from 'socket.io';
 import { Request } from 'express';
+import { IUser } from 'src/shared-types/user/user.interface';
 
 @Injectable()
 export class PermissionsGuard implements CanActivate {
-  constructor(private reflector: Reflector, private permissionService: PermissionService) {}
+  constructor(private reflector: Reflector, private permissionService: PermissionService) { }
 
   canActivate(context: ExecutionContext): boolean {
     const requiredPermissions = this.reflector.getAllAndOverride<Permission[]>(PERMISSIONS_KEY, [
@@ -45,8 +45,8 @@ export class PermissionsGuard implements CanActivate {
 
     return true;
   }
-  
-  private testUser(user: User, perms: Permission[]): boolean {
+
+  private testUser(user: IUser, perms: Permission[]): boolean {
     return !user ? false : perms.every(permission => this.permissionService.hasPermission(user, permission));
   }
 }

@@ -17,27 +17,25 @@ import { GameSettingsSerializer } from 'src/util/serialization/game-settings.ser
 import { GameSerializer } from 'src/util/serialization/game.serializer';
 import { SocketResponseBuilder } from 'src/util/net/socket-response-builder.class';
 import { Game } from './game.entity';
-import GamePayload from 'src/shared-types/game/game.payload';
 import SocketResponse from 'src/types/socket-response.class';
 import GameIdPayload from 'src/shared-types/game/game-id.payload';
 import { GameSettings } from './game-settings';
-import CardIdsPayload from 'src/shared-types/card/card-ids.payload';
 import JudgeIdPayload from 'src/shared-types/game/component/judge-id.payload';
 import RoundNumberPayload from 'src/shared-types/game/component/round-number.payload';
-import WhiteCardPayload from 'src/shared-types/card/white-card.payload';
-import BlackCardPayload from 'src/shared-types/card/black-card.payload';
-import WhiteCardsPayload from 'src/shared-types/card/white-cards.payload';
 import SecondsPayload from 'src/shared-types/game/component/seconds.payload';
 import StateTransitionPayload from 'src/shared-types/game/component/state-transition.payload';
 import ConnectionStatusPayload from 'src/shared-types/misc/connection-status.payload';
 import GameSettingsPayload from 'src/shared-types/game/game-settings.payload';
-import ChatMessagePayload from 'src/shared-types/game/component/message/chat-message.payload';
 import PartialPlayerPayload from 'src/shared-types/game/player/partial-player.payload';
 import PartialSpectatorPayload from 'src/shared-types/game/spectator/partial-spectator.payload';
 import DecksPayload from 'src/shared-types/deck/decks.payload';
 import IGame from 'src/shared-types/game/game.interface';
 import { IChatMessage } from 'src/shared-types/game/component/message/chat-message.interface';
 import { MessageType } from 'src/shared-types/game/component/message/message-type.enum';
+import WhiteCardPayload from 'src/shared-types/card/white/white-card.payload';
+import BlackCardPayload from 'src/shared-types/card/black/black-card.payload';
+import WhiteCardsPayload from 'src/shared-types/card/white/white-cards.payload';
+import CardIdsPayload from 'src/shared-types/card/id/card-ids.payload';
 
 @WebSocketGateway({
   cors: {
@@ -526,15 +524,15 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     SocketResponseBuilder.start<IChatMessage>()
       .channel("chat")
       .data({
-          type: MessageType.Chat,
-          content: message,
-          context: {
-            player: {
-              id: user.id,
-              nickname: user.nickname
-            },
-            timestamp: new Date().getTime()
-          }
+        type: MessageType.Chat,
+        content: message,
+        context: {
+          player: {
+            id: user.id,
+            nickname: user.nickname
+          },
+          timestamp: new Date().getTime()
+        }
       })
       .build()
       .emitToRoom(this.server, GameChannel.GAME_ROOM(game.getId()));

@@ -32,7 +32,7 @@ export class IsAuthenticatedGuard implements CanActivate {
 
     private canActivateWs(context: ExecutionContext): boolean {
         const socket: Socket = context.switchToWs().getClient();
-        
+
         if (!socket?.session?.user || !socket?.session?.id) {
             socket.emit("unauthorized", { message: "You must be logged in." });
             return false;

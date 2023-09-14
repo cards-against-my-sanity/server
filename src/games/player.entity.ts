@@ -1,16 +1,16 @@
 import IPlayer from "src/shared-types/game/player/player.interface";
-import { User } from "src/users/entities/user.entity";
 import { PlayerState } from "../../../cams-types/game/player/player-state.enum";
-import { WhiteCard } from "src/cards/entities/white-card.entity";
+import { IUser } from "src/shared-types/user/user.interface";
+import IWhiteCard from "src/shared-types/card/white/white-card.interface";
 
 export class Player implements IPlayer {
     id: string;
     nickname: string;
     state: PlayerState;
     score: number;
-    private hand: WhiteCard[];
+    private hand: IWhiteCard[];
 
-    constructor(user: User) {
+    constructor(user: IUser) {
         this.id = user.id;
         this.nickname = user.nickname;
         this.state = PlayerState.Player;
@@ -18,25 +18,25 @@ export class Player implements IPlayer {
         this.hand = [];
     }
 
-    getHand(): WhiteCard[] {
+    getHand(): IWhiteCard[] {
         return this.hand;
     }
 
-    removeCardsFromHand(cardIds: string[]): WhiteCard[] {
+    removeCardsFromHand(cardIds: string[]): IWhiteCard[] {
         const cards = this.hand.filter(c => cardIds.includes(c.id));
         this.hand = this.hand.filter(c => !cardIds.includes(c.id));
         return cards;
     }
 
-    setHand(cards: WhiteCard[]) {
+    setHand(cards: IWhiteCard[]) {
         this.hand = cards;
     }
 
-    dealCards(cards: WhiteCard[]) {
+    dealCards(cards: IWhiteCard[]) {
         cards.forEach(card => this.dealCard(card));
     }
 
-    dealCard(card: WhiteCard) {
+    dealCard(card: IWhiteCard) {
         this.hand.push(card);
     }
 

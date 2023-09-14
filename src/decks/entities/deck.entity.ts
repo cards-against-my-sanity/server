@@ -12,6 +12,6 @@ export class Deck implements IDeck {
     @Column()
     description: string;
 
-    @Column({default: 999})
+    @Column({ default: 999 })
     weight: number;
 }

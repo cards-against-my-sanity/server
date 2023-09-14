@@ -1,9 +1,9 @@
 import { Request } from "express";
-import { User } from "src/users/entities/user.entity";
+import { IUser } from "src/shared-types/user/user.interface";
 
 declare module 'express-serve-static-core' {
     interface Request {
-        user: User & {
+        user: IUser & {
             session_id: string
         }
     }

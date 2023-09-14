@@ -13,4 +13,4 @@ import { ScheduleModule } from '@nestjs/schedule';
   imports: [UsersModule, DecksModule, CardsModule, PermissionModule, SessionModule, ConfigModule, ScheduleModule],
   providers: [GamesGateway, GamesService]
 })
-export class GamesModule {}
+export class GamesModule { }

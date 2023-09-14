@@ -2,23 +2,23 @@ import { Injectable } from "@nestjs/common";
 import { PermissionCategory } from "src/permission/permission-category.enum";
 import { Permission } from "./permission.class";
 import { UsersService } from "src/users/users.service";
-import { User } from "src/users/entities/user.entity";
+import { IUser } from "src/shared-types/user/user.interface";
 
 @Injectable()
 export class PermissionService {
     constructor(private readonly usersService: UsersService) { }
 
-    setPermission(user: User, permission: Permission): void {
+    setPermission(user: IUser, permission: Permission): void {
         user.permissions[PermissionService.getPermissionSetName(permission.getCategory())] |= permission.getValue();
         this.usersService.save(user);
     }
 
-    removePermission(user: User, permission: Permission): void {
+    removePermission(user: IUser, permission: Permission): void {
         user.permissions[PermissionService.getPermissionSetName(permission.getCategory())] &= ~permission;
         this.usersService.save(user);
     }
 
-    hasPermission(user: User, permission: Permission): boolean {
+    hasPermission(user: IUser, permission: Permission): boolean {
         return (user.permissions[PermissionService.getPermissionSetName(permission.getCategory())] & permission.getValue())
             === permission.getValue();
     }

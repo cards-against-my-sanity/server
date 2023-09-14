@@ -1,5 +1,5 @@
 import { Deck } from "src/decks/entities/deck.entity";
-import IWhiteCard from "src/shared-types/card/white-card.interface";
+import IWhiteCard from "src/shared-types/card/white/white-card.interface";
 import { Column, Entity, JoinTable, ManyToMany, PrimaryGeneratedColumn } from "typeorm";
 
 @Entity()

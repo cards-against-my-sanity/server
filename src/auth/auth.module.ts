@@ -21,4 +21,4 @@ import { CookieAuthModule } from './cookie-auth/cookie-auth.module';
   providers: [AuthService],
   exports: [AuthService]
 })
-export class AuthModule {}
+export class AuthModule { }

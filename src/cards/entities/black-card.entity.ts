@@ -1,5 +1,5 @@
 import { Deck } from "src/decks/entities/deck.entity";
-import { IBlackCard } from "src/shared-types/card/black-card.interface";
+import IBlackCard from "src/shared-types/card/black/black-card.interface";
 import { Column, Entity, JoinTable, ManyToMany, PrimaryGeneratedColumn } from "typeorm";
 
 @Entity()

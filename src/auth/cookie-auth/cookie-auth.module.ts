@@ -6,4 +6,4 @@ import { CookieAuthStrategy } from "./cookie-auth.strategy";
     imports: [SessionModule],
     providers: [CookieAuthStrategy]
 })
-export class CookieAuthModule {}
+export class CookieAuthModule { }

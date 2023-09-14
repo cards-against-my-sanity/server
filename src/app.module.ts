@@ -50,4 +50,4 @@ import { CookieAuthWithAnonFallbackGuard } from './auth/cookie-auth/cookie-auth-
     }
   ]
 })
-export class AppModule {}
+export class AppModule { }

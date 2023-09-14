@@ -2,12 +2,9 @@ import { GameState } from "../../../cams-types/game/game-state.enum";
 import { Player } from "./player.entity";
 import { PlayerState } from "../../../cams-types/game/player/player-state.enum";
 import { v4 as uuidv4 } from 'uuid';
-import { WhiteCard } from "src/cards/entities/white-card.entity";
-import { BlackCard } from "src/cards/entities/black-card.entity";
 import { Deck } from "src/decks/entities/deck.entity";
 import { GameStatusCode } from "./game-status-code";
 import { EventEmitter } from "stream";
-import { User } from "src/users/entities/user.entity";
 import { Spectator } from "./spectator.entity";
 import { GameSettings } from "./game-settings";
 import * as argon2 from 'argon2';
@@ -17,44 +14,54 @@ import { SpectatorSerializer } from "src/util/serialization/spectator.serializer
 import GameIdPayload from "src/shared-types/game/game-id.payload";
 import RoundNumberPayload from "src/shared-types/game/component/round-number.payload";
 import JudgeIdPayload from "src/shared-types/game/component/judge-id.payload";
-import WhiteCardPayload from "src/shared-types/card/white-card.payload";
-import BlackCardPayload from "src/shared-types/card/black-card.payload";
-import WhiteCardsPayload from "src/shared-types/card/white-cards.payload";
 import SecondsPayload from "src/shared-types/game/component/seconds.payload";
 import StateTransitionPayload from "src/shared-types/game/component/state-transition.payload";
 import PartialPlayerPayload from "src/shared-types/game/player/partial-player.payload";
 import PartialSpectatorPayload from "src/shared-types/game/spectator/partial-spectator.payload";
+import IGame from "src/shared-types/game/game.interface";
+import IPlayer from "src/shared-types/game/player/player.interface";
+import IDeck from "src/shared-types/deck/deck.interface";
+import { IUser } from "src/shared-types/user/user.interface";
+import WhiteCardPayload from "src/shared-types/card/white/white-card.payload";
+import BlackCardPayload from "src/shared-types/card/black/black-card.payload";
+import WhiteCardsPayload from "src/shared-types/card/white/white-cards.payload";
+import IWhiteCard from "src/shared-types/card/white/white-card.interface";
+import IBlackCard from "src/shared-types/card/black/black-card.interface";
 
-export class Game extends EventEmitter {
+export class Game extends EventEmitter implements IGame {
     static readonly MINIMUM_PLAYERS = 3;
     static readonly MINIMUM_BLACK_CARDS = 50;
     static readonly MINIMUM_WHITE_CARDS_PER_PLAYER = 20;
 
-    private readonly id: string;
+    id: string;
+    host: Partial<IPlayer>;
+    decks: IDeck[] = [];
+    settings: GameSettings = new GameSettings();
+    state: GameState = GameState.Lobby;
+    players: Player[] = [];
+    spectators: Spectator[] = [];
+    roundNumber: number = 0;
 
-    private decks: Deck[] = [];
+    private readonly availableWhiteCards: IWhiteCard[] = [];
+    private readonly playedWhiteCards: Map<Player, IWhiteCard[]> = new Map();
+    private readonly discardedWhiteCards: IWhiteCard[] = [];
+    private currentBlackCard: IBlackCard;
+    private readonly availableBlackCards: IBlackCard[] = [];
+    private readonly discardedBlackCards: IBlackCard[] = [];
 
-    private readonly availableWhiteCards: WhiteCard[] = [];                     // available to draw
-    private readonly playedWhiteCards: Map<Player, WhiteCard[]> = new Map();    // played this round (ephemeral)
-    private readonly discardedWhiteCards: WhiteCard[] = [];                     // have already been played in a prior round
 
-    private currentBlackCard: BlackCard;                                        // now playing
-    private readonly availableBlackCards: BlackCard[] = [];                     // available to draw
-    private readonly discardedBlackCards: BlackCard[] = [];                     // have already been played
 
-    private readonly settings: GameSettings = new GameSettings();
-
-    private state: GameState = GameState.Lobby;
-    private players: Player[] = [];
-    private spectators: Spectator[] = [];
-    private roundNumber: number = 0;
-
-    constructor(
-        private host: User
-    ) {
+    constructor(hostUser: IUser) {
         super();
+
         this.id = uuidv4();
-        this.players.push(new Player(host));
+
+        this.host = {
+            id: hostUser.id,
+            nickname: hostUser.nickname
+        }
+
+        this.players.push(new Player(hostUser));
     }
 
     /**
@@ -67,11 +74,11 @@ export class Game extends EventEmitter {
     }
 
     /**
-     * Gets the User representing the game host
+     * Gets the partial IPlayer representing the game host
      * 
-     * @returns the user representing the game host
+     * @returns the partial IPlayer representing the game host
      */
-    getHost(): User {
+    getHost(): Partial<IPlayer> {
         return this.host;
     }
 
@@ -152,7 +159,7 @@ export class Game extends EventEmitter {
      * @param blackCards the black cards to add
      * @param whiteCards the white cards to add
      */
-    setCards(blackCards: BlackCard[], whiteCards: WhiteCard[]) {
+    setCards(blackCards: IBlackCard[], whiteCards: IWhiteCard[]) {
         this.availableBlackCards.length = 0;
         this.discardedBlackCards.length = 0;
         this.availableBlackCards.push(...blackCards);
@@ -217,7 +224,7 @@ export class Game extends EventEmitter {
      *          ACTION_OK: if the player has been 
      *          added
      */
-    addPlayer(user: User): GameStatusCode {
+    addPlayer(user: IUser): GameStatusCode {
         if (this.state !== GameState.Lobby && !this.getAllowPlayersToJoinMidGame()) {
             return GameStatusCode.NOT_IN_LOBBY_STATE;
         }
@@ -238,7 +245,7 @@ export class Game extends EventEmitter {
     /**
      * Gets a specific player by id
      * @param id the user id of the player to get
-     * @returns the plaeyr or undefined
+     * @returns the player or undefined
      */
     getPlayer(id: string): Player {
         return this.players.find(p => p.id === id);
@@ -308,7 +315,7 @@ export class Game extends EventEmitter {
             this.resetState(GameStatusCode.NOT_ENOUGH_PLAYERS.getMessage());
         }
 
-        this.emitPlayerLeftGame({ gameId: this.id, player: { id }});
+        this.emitPlayerLeftGame({ gameId: this.id, player: { id } });
 
         if (this.players.length === 0) {
             this.emitGameEmpty({ gameId: this.id });
@@ -329,7 +336,7 @@ export class Game extends EventEmitter {
      *          ACTION_OK: if the spectator has been
      *          added
      */
-    addSpectator(user: User): GameStatusCode {
+    addSpectator(user: IUser): GameStatusCode {
         if (this.spectators.length + 1 > this.settings.maxSpectators) {
             return GameStatusCode.MAX_SPECTATORS_REACHED;
         }
@@ -389,7 +396,7 @@ export class Game extends EventEmitter {
 
         this.spectators = this.spectators.filter(s => s.id !== id);
 
-        this.emitSpectatorLeftGame({ gameId: this.id, spectator: { id }})
+        this.emitSpectatorLeftGame({ gameId: this.id, spectator: { id } })
 
         return GameStatusCode.ACTION_OK;
     }
@@ -534,7 +541,7 @@ export class Game extends EventEmitter {
         if (seconds < 0) {
             seconds = 0;
         }
-        
+
         this.settings.gameWinIntermissionSeconds = seconds;
         return GameStatusCode.ACTION_OK;
     }
@@ -553,7 +560,7 @@ export class Game extends EventEmitter {
      * @returns ACTION_OK - the setting has been changed
      */
     setAllowPlayersToJoinMidGame(allow: boolean): GameStatusCode {
-        this.settings.allowPlayersToJoinMidGame = allow; 
+        this.settings.allowPlayersToJoinMidGame = allow;
         return GameStatusCode.ACTION_OK;
     }
 
@@ -579,7 +586,7 @@ export class Game extends EventEmitter {
         } else {
             this.settings.password = await argon2.hash(password);
         }
-        
+
         return GameStatusCode.ACTION_OK;
     }
 
@@ -719,7 +726,7 @@ export class Game extends EventEmitter {
 
                 player.dealCard(nextWhiteCard);
 
-                this.emitDealCardToPlayer({ card: nextWhiteCard, gameId: this.id, player: { id: player.id }});
+                this.emitDealCardToPlayer({ card: nextWhiteCard, gameId: this.id, player: { id: player.id } });
             }
         });
 
@@ -756,7 +763,7 @@ export class Game extends EventEmitter {
             this.resetState();
             return;
         }
-        
+
         this.emitStateTransition({ gameId: this.id, to: GameState.Playing, from: this.state, context: null });
         this.state = GameState.Playing;
     }
@@ -798,7 +805,7 @@ export class Game extends EventEmitter {
         if (player.state === PlayerState.Judge) {
             return GameStatusCode.IS_THE_JUDGE;
         }
-        
+
         if (cards.length < this.currentBlackCard.pick) {
             return GameStatusCode.NOT_ENOUGH_CARDS;
         }
@@ -838,13 +845,15 @@ export class Game extends EventEmitter {
             return;
         }
 
-        this.emitStateTransition({ gameId: this.id, to: GameState.Judging, from: this.state, context: {
-            cardsToJudge: [...this.playedWhiteCards].map(e => e[1])
-        }});
+        this.emitStateTransition({
+            gameId: this.id, to: GameState.Judging, from: this.state, context: {
+                cardsToJudge: [...this.playedWhiteCards].map(e => e[1])
+            }
+        });
 
         this.state = GameState.Judging;
     }
-    
+
     /**
      * Judges the given cards to be the winning cards of the round.
      * Performs a reverse lookup to identify the winning player and
@@ -903,12 +912,12 @@ export class Game extends EventEmitter {
 
         winner[0].score++;
 
-        this.emitRoundWinner({ 
-            gameId: this.id, 
+        this.emitRoundWinner({
+            gameId: this.id,
             cards: winner[1],
-            player: { 
-                id: winner[0].id, 
-                nickname: winner[0].nickname 
+            player: {
+                id: winner[0].id,
+                nickname: winner[0].nickname
             }
         });
 
@@ -966,10 +975,12 @@ export class Game extends EventEmitter {
         this.state = GameState.Win;
 
         const winner = this.getGameWinner();
-        this.emitGameWinner({ gameId: this.id, player: {
-            id: winner.id,
-            nickname: winner.nickname
-        }});
+        this.emitGameWinner({
+            gameId: this.id, player: {
+                id: winner.id,
+                nickname: winner.nickname
+            }
+        });
 
         const seconds = this.getGameWinIntermissionSeconds();
         if (seconds > 0) {
@@ -988,9 +999,11 @@ export class Game extends EventEmitter {
      * to the next state.
      */
     private resetState(reason?: string) {
-        this.emitStateTransition({ gameId: this.id, to: GameState.Reset, from: this.state, context: {
-            reason
-        }});
+        this.emitStateTransition({
+            gameId: this.id, to: GameState.Reset, from: this.state, context: {
+                reason
+            }
+        });
 
         this.state = GameState.Reset;
 
@@ -1057,7 +1070,7 @@ export class Game extends EventEmitter {
     private emitPlayerJoinedGame(payload: GameIdPayload & PartialPlayerPayload) {
         this.event("playerJoinedGame", payload);
     }
-    
+
     private emitPlayerLeftGame(payload: GameIdPayload & PartialPlayerPayload) {
         this.event("playerLeftGame", payload);
     }

@@ -4,14 +4,13 @@ import { Deck } from './entities/deck.entity';
 import { CreateDeckDto } from './dto/create-deck.dto';
 import { UpdateDeckDto } from './dto/update-deck.dto';
 import { Repository } from 'typeorm';
+import IDeck from 'src/shared-types/deck/deck.interface';
 
 @Injectable()
 export class DecksService {
-  constructor(
-    @InjectRepository(Deck) private readonly decksRepository: Repository<Deck>
-  ) {}
+  constructor(@InjectRepository(Deck) private readonly decksRepository: Repository<Deck>) { }
 
-  async create(createDeckDto: CreateDeckDto) {
+  async create(createDeckDto: CreateDeckDto): Promise<void> {
     const existing = await this.decksRepository.findOneBy({ name: createDeckDto.name });
     if (existing != null) {
       throw new ConflictException("deck already exists");
@@ -20,19 +19,15 @@ export class DecksService {
     this.decksRepository.save(createDeckDto)
   }
 
-  findAll() {
-    return this.decksRepository.find({order: {weight: 'asc', name: 'asc'}})
+  findAll(): Promise<IDeck[]> {
+    return this.decksRepository.find({ order: { weight: 'asc', name: 'asc' } })
   }
 
-  findOne(id: string) {
+  findOne(id: string): Promise<IDeck> {
     return this.decksRepository.findOneBy({ id })
   }
 
-  exist(id: string) {
-    return this.decksRepository.exist({ where: { id }})
-  }
-
-  async update(id: string, updateDeckDto: UpdateDeckDto) {
+  async update(id: string, updateDeckDto: UpdateDeckDto): Promise<void> {
     if (updateDeckDto.name) {
       const existing = await this.decksRepository.findOneBy({ name: updateDeckDto.name });
       if (existing != null) {
@@ -43,7 +38,7 @@ export class DecksService {
     await this.decksRepository.update({ id }, updateDeckDto)
   }
 
-  async remove(id: string) {
-    await this.decksRepository.delete({ id })
+  remove(id: string): void {
+    this.decksRepository.delete({ id })
   }
 }

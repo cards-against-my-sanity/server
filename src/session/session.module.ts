@@ -8,4 +8,4 @@ import { Session } from './entities/session.entity';
   providers: [SessionService],
   exports: [SessionService]
 })
-export class SessionModule {}
+export class SessionModule { }

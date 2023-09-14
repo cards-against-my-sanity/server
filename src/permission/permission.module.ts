@@ -7,4 +7,4 @@ import { UsersModule } from 'src/users/users.module';
     providers: [PermissionService],
     exports: [PermissionService]
 })
-export class PermissionModule {}
+export class PermissionModule { }
