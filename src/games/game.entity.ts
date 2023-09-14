@@ -904,7 +904,10 @@ export class Game extends EventEmitter implements IGame {
         } else {
             const seconds = this.getRoundIntermissionSeconds();
             if (seconds > 0) {
-                this.emitRoundIntermission({ gameId: this.id, seconds });
+                this.emitSystemMessage({ gameId: this.id, message: {
+                    content: `The next round will begin in ${seconds} seconds.`
+                }});
+
                 setTimeout(() => this.beginNextRound(), seconds * 1000);
             } else {
                 this.beginNextRound();
@@ -953,16 +956,16 @@ export class Game extends EventEmitter implements IGame {
         this.state = GameState.Win;
 
         const winner = this.getGameWinner();
-        this.emitGameWinner({
-            gameId: this.id, player: {
-                id: winner.id,
-                nickname: winner.nickname
-            }
-        });
+        this.emitSystemMessage({ gameId: this.id, message: {
+            content: `${winner.nickname} has won the game. Congratulations!`
+        }});
 
         const seconds = this.getGameWinIntermissionSeconds();
         if (seconds > 0) {
-            this.emitGameWinIntermission({ gameId: this.id, seconds });
+            this.emitSystemMessage({ gameId: this.id, message: {
+                content: `The game will return to the lobby in ${seconds} seconds.`
+            }});
+
             setTimeout(() => this.resetState(), seconds * 1000);
         } else {
             this.resetState();
@@ -1066,7 +1069,12 @@ export class Game extends EventEmitter implements IGame {
     }
 
     private emitSystemMessage(payload: GameIdPayload & SystemMessagePayload) {
-        this.event("systemMessage", payload);
+        this.event("systemMessage", {
+            content: payload.message.content,
+            context: {
+                timestamp: new Date().getTime()
+            }
+        });
     }
 
     private emitBeginNextRound(payload: GameIdPayload & JudgeIdPayload & RoundNumberPayload) {
@@ -1083,18 +1091,6 @@ export class Game extends EventEmitter implements IGame {
 
     private emitRoundWinner(payload: GameIdPayload & PartialPlayerPayload & WhiteCardsPayload) {
         this.event("roundWinner", payload);
-    }
-
-    private emitGameWinner(payload: GameIdPayload & PartialPlayerPayload) {
-        this.event("gameWinner", payload);
-    }
-
-    private emitRoundIntermission(payload: SecondsPayload & GameIdPayload) {
-        this.event("roundIntermission", payload);
-    }
-
-    private emitGameWinIntermission(payload: SecondsPayload & GameIdPayload) {
-        this.event("gameWinIntermission", payload);
     }
 
     private emitStateTransition(payload: GameIdPayload & StateTransitionPayload<any>) {

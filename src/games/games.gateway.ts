@@ -27,7 +27,6 @@ import StateTransitionPayload from 'src/shared-types/game/component/state-transi
 import ConnectionStatusPayload from 'src/shared-types/misc/connection-status.payload';
 import GameSettingsPayload from 'src/shared-types/game/game-settings.payload';
 import PartialPlayerPayload from 'src/shared-types/game/player/partial-player.payload';
-import PartialSpectatorPayload from 'src/shared-types/game/spectator/partial-spectator.payload';
 import DecksPayload from 'src/shared-types/deck/decks.payload';
 import IGame from 'src/shared-types/game/game.interface';
 import { IChatMessage } from 'src/shared-types/game/component/message/chat-message.interface';
@@ -69,9 +68,6 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     service.on('dealCardToPlayer', this.handleDealCardToPlayer.bind(this));
     service.on('dealBlackCard', this.handleDealBlackCard.bind(this));
     service.on('roundWinner', this.handleRoundWinner.bind(this));
-    service.on('gameWinner', this.handleGameWinner.bind(this));
-    service.on('roundIntermission', this.handleRoundIntermission.bind(this));
-    service.on('gameWinIntermission', this.handleGameWinIntermission.bind(this));
     service.on('stateTransition', this.handleStateTransition.bind(this));
     service.on('illegalStateTransition', this.handleIllegalStateTransition.bind(this));
   }
@@ -660,7 +656,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * @param payload the game and spectator information
    */
   private handleSpectatorJoinedGame(payload: GameIdPayload & SpectatorPayload) {
-    SocketResponseBuilder.start<GameIdPayload & PartialSpectatorPayload>()
+    SocketResponseBuilder.start<GameIdPayload & SpectatorPayload>()
       .data(payload)
       .channel("spectatorJoined")
       .build()
@@ -750,45 +746,6 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     SocketResponseBuilder.start<GameIdPayload & PartialPlayerPayload & WhiteCardsPayload>()
       .data(payload)
       .channel("roundWinner")
-      .build()
-      .emitToRoom(this.server, GameChannel.GAME_ROOM(payload.gameId));
-  }
-
-  /**
-   * Handles when there is a game winner.
-   * 
-   * @param payload the game winner payload
-   */
-  private handleGameWinner(payload: GameIdPayload & PartialPlayerPayload) {
-    SocketResponseBuilder.start<GameIdPayload & PartialPlayerPayload>()
-      .data(payload)
-      .channel("gameWinner")
-      .build()
-      .emitToRoom(this.server, GameChannel.GAME_ROOM(payload.gameId));
-  }
-
-  /**
-   * Handles when the round intermission is occurring.
-   * 
-   * @param payload the round intermission payload
-   */
-  private handleRoundIntermission(payload: SecondsPayload & GameIdPayload) {
-    SocketResponseBuilder.start<SecondsPayload>()
-      .data(payload)
-      .channel("roundIntermission")
-      .build()
-      .emitToRoom(this.server, GameChannel.GAME_ROOM(payload.gameId));
-  }
-
-  /**
-   * Handles when the game win intermission is occurring.
-   * 
-   * @param payload the game win intermission payload
-   */
-  private handleGameWinIntermission(payload: SecondsPayload & GameIdPayload) {
-    SocketResponseBuilder.start<SecondsPayload>()
-      .data(payload)
-      .channel("gameWinIntermission")
       .build()
       .emitToRoom(this.server, GameChannel.GAME_ROOM(payload.gameId));
   }
