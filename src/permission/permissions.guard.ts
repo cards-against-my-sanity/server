@@ -6,6 +6,8 @@ import { PermissionService } from 'src/permission/permission.service';
 import { Socket } from 'socket.io';
 import { Request } from 'express';
 import { IUser } from 'src/shared-types/user/user.interface';
+import { SocketResponseBuilder } from 'src/util/net/socket-response-builder.class';
+import UnauthorizedPayload from 'src/shared-types/misc/unauthorized.payload';
 
 @Injectable()
 export class PermissionsGuard implements CanActivate {
@@ -39,7 +41,12 @@ export class PermissionsGuard implements CanActivate {
   private canActivateWs(context: ExecutionContext, requiredPermissions: Permission[]): boolean {
     const socket: Socket = context.switchToWs().getClient();
     if (!this.testUser(socket.session?.user, requiredPermissions)) {
-      socket.emit("unauthorized", { message: "You are not permitted to perform that action." });
+      SocketResponseBuilder.start<UnauthorizedPayload>()
+        .data({ message: "You are not permitted to perform that action." })
+        .channel("unauthorized")
+        .build()
+        .emitToClient(socket);
+
       return false;
     }
 

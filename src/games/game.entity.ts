@@ -28,8 +28,9 @@ import PlayerPayload from "src/shared-types/game/player/player.payload";
 import SpectatorPayload from "src/shared-types/game/spectator/spectator.payload";
 import PlayerIdPayload from "src/shared-types/game/player/player-id.payload";
 import SpectatorIdPayload from "src/shared-types/game/spectator/spectator-id.payload";
-import SystemMessagePayload from "src/shared-types/game/component/message/system-message.payload";
 import WhiteCardsMatrixPayload from "src/shared-types/card/white/white-cards-matrix.payload";
+import MessagePayload from "src/shared-types/game/component/message/message.payload";
+import ContentPayload from "src/shared-types/game/component/content.payload";
 
 export class Game extends EventEmitter implements IGame {
     static readonly MINIMUM_PLAYERS = 3;
@@ -317,11 +318,7 @@ export class Game extends EventEmitter implements IGame {
             this.emitStateTransition({ gameId: this.id, to: GameState.Abandoned, from: this.state });
             this.state = GameState.Abandoned;
         } else if (this.players.length < Game.MINIMUM_PLAYERS) {
-            this.emitSystemMessage({
-                gameId: this.id, message: {
-                    content: "Too many players have left the game. The game will reset."
-                }
-            });
+            this.emitSystemMessage({ gameId: this.id, content: "Too many players have left the game. The game will reset." });
 
             this.resetState();
         }
@@ -606,31 +603,39 @@ export class Game extends EventEmitter implements IGame {
      *          ACTION_OK: if the game has been started
      */
     start(): GameStatusCode {
+        console.log('internal start game called')
         if (this.state !== GameState.Lobby) {
             return GameStatusCode.NOT_IN_LOBBY_STATE;
         }
+
+        console.log('ok good state')
 
         if (this.players.length < Game.MINIMUM_PLAYERS) {
             return GameStatusCode.NOT_ENOUGH_PLAYERS;
         }
 
+        console.log('ok good players')
+
         if (this.availableBlackCards.length < Game.MINIMUM_BLACK_CARDS) {
             return GameStatusCode.NOT_ENOUGH_BLACK_CARDS;
         }
+
+        console.log('ok good black cards')
 
         if (this.availableWhiteCards.length < (Game.MINIMUM_WHITE_CARDS_PER_PLAYER * this.players.length)) {
             return GameStatusCode.NOT_ENOUGH_WHITE_CARDS;
         }
 
-        this.emitSystemMessage({
-            gameId: this.id, message: {
-                content: "The game has been started. GLHF!"
-            }
-        });
+        console.log('ok good white cards; starting...');
+
+        this.emitSystemMessage({ gameId: this.id, content: "The game has been started. GLHF!" });
+
+        console.log('creating starting judge position')
 
         const initialJudgeIdx = Math.floor(Math.random() * (this.players.length - 1));
         this.players[initialJudgeIdx].state = PlayerState.Judge;
 
+        console.log('beginning round.')
         this.beginNextRound();
 
         return GameStatusCode.ACTION_OK;
@@ -652,11 +657,7 @@ export class Game extends EventEmitter implements IGame {
             return GameStatusCode.NOT_IN_PROGRESS;
         }
 
-        this.emitSystemMessage({
-            gameId: this.id, message: {
-                content: "The game has been stopped by the host."
-            }
-        });
+        this.emitSystemMessage({ gameId: this.id, content: "The game has been stopped by the host." });
 
         this.resetState();
 
@@ -909,11 +910,7 @@ export class Game extends EventEmitter implements IGame {
 
         winner[0].score++;
 
-        this.emitSystemMessage({
-            gameId: this.id, message: {
-                content: `${winner[0].nickname} has won the round. One point awarded.`
-            }
-        });
+        this.emitSystemMessage({ gameId: this.id, content: `${winner[0].nickname} has won the round. One point awarded.` });
 
         this.emitRoundWinner({
             gameId: this.id,
@@ -929,11 +926,7 @@ export class Game extends EventEmitter implements IGame {
         } else {
             const seconds = this.getRoundIntermissionSeconds();
             if (seconds > 0) {
-                this.emitSystemMessage({
-                    gameId: this.id, message: {
-                        content: `The next round will begin in ${seconds} seconds.`
-                    }
-                });
+                this.emitSystemMessage({ gameId: this.id, content: `The next round will begin in ${seconds} seconds.` });
 
                 setTimeout(() => this.beginNextRound(), seconds * 1000);
             } else {
@@ -983,19 +976,11 @@ export class Game extends EventEmitter implements IGame {
         this.state = GameState.Win;
 
         const winner = this.getGameWinner();
-        this.emitSystemMessage({
-            gameId: this.id, message: {
-                content: `${winner.nickname} has won the game. Congratulations!`
-            }
-        });
+        this.emitSystemMessage({ gameId: this.id, content: `${winner.nickname} has won the game. Congratulations!` });
 
         const seconds = this.getGameWinIntermissionSeconds();
         if (seconds > 0) {
-            this.emitSystemMessage({
-                gameId: this.id, message: {
-                    content: `The game will return to the lobby in ${seconds} seconds.`
-                }
-            });
+            this.emitSystemMessage({ gameId: this.id, content: `The game will return to the lobby in ${seconds} seconds.` });
 
             setTimeout(() => this.resetState(), seconds * 1000);
         } else {
@@ -1097,8 +1082,8 @@ export class Game extends EventEmitter implements IGame {
         this.event("spectatorLeftGame", payload);
     }
 
-    private emitSystemMessage(payload: GameIdPayload & SystemMessagePayload) {
-        this.event("systemMessage", payload.message);
+    private emitSystemMessage(payload: GameIdPayload & ContentPayload) {
+        this.event("systemMessage", payload);
     }
 
     private emitBeginNextRound(payload: GameIdPayload & JudgeIdPayload & RoundNumberPayload) {

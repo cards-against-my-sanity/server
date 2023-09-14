@@ -29,18 +29,16 @@ import GameSettingsPayload from 'src/shared-types/game/game-settings.payload';
 import PartialPlayerPayload from 'src/shared-types/game/player/partial-player.payload';
 import DecksPayload from 'src/shared-types/deck/decks.payload';
 import IGame from 'src/shared-types/game/game.interface';
-import { IChatMessage } from 'src/shared-types/game/component/message/chat-message.interface';
 import WhiteCardPayload from 'src/shared-types/card/white/white-card.payload';
 import BlackCardPayload from 'src/shared-types/card/black/black-card.payload';
 import WhiteCardsPayload from 'src/shared-types/card/white/white-cards.payload';
-import CardIdsPayload from 'src/shared-types/card/id/card-ids.payload';
 import PlayerPayload from 'src/shared-types/game/player/player.payload';
 import SpectatorPayload from 'src/shared-types/game/spectator/spectator.payload';
 import SpectatorIdPayload from 'src/shared-types/game/spectator/spectator-id.payload';
 import PlayerIdPayload from 'src/shared-types/game/player/player-id.payload';
-import SystemMessagePayload from 'src/shared-types/game/component/message/system-message.payload';
-import ISystemMessage from 'src/shared-types/game/component/message/system-message.interface';
 import WhiteCardsMatrixPayload from 'src/shared-types/card/white/white-cards-matrix.payload';
+import MessagePayload from 'src/shared-types/game/component/message/message.payload';
+import IMessage from 'src/shared-types/game/component/message/message.interface';
 
 @WebSocketGateway({
   cors: {
@@ -150,8 +148,10 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return SocketResponseBuilder.error("You're not hosting a game.");
     }
 
+    const status = await this.service.startGame(game.getId());
+
     return SocketResponseBuilder.start<null>()
-      .useGameStatusCode(await this.service.startGame(game.getId()))
+      .useGameStatusCode(status)
       .build();
   }
 
@@ -186,7 +186,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    */
   @SubscribeMessage("addDeckToGame")
   @HasPermissions(Permission.ChangeGameSettings)
-  async addDeckToGame(@ConnectedSocket() client: Socket, @MessageBody('deckId') deckId: string): Promise<SocketResponse<GameIdPayload & DecksPayload>> {
+  async addDeckToGame(@ConnectedSocket() client: Socket, @MessageBody('deckId') deckId: string): Promise<SocketResponse<null>> {
     const game = this.service.getGameHostedBy(client.session.user);
 
     if (!game) {
@@ -199,22 +199,18 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     const status = await this.service.addDeckToGame(game.getId(), deckId);
 
-    const out = SocketResponseBuilder.start<GameIdPayload & DecksPayload>()
-      .useGameStatusCode(status)
-      .data(status === GameStatusCode.ACTION_OK ?
-        { gameId: game.getId(), decks: game.getDecks() } : null
-      )
-      .channel('decksUpdated')
-      .build()
-
     if (status === GameStatusCode.ACTION_OK) {
-      out.emitToRooms(this.server, [
-        GameChannel.GAME_BROWSER,
-        GameChannel.GAME_ROOM(game.getId())
-      ]);
+      SocketResponseBuilder.start<GameIdPayload & DecksPayload>()
+        .data({ gameId: game.getId(), decks: game.getDecks() })
+        .channel('decksUpdated')
+        .build()
+        .emitToRooms(this.server, [
+          GameChannel.GAME_BROWSER,
+          GameChannel.GAME_ROOM(game.getId())
+        ]);
     }
 
-    return out;
+    return SocketResponseBuilder.start<null>().build();
   }
 
   /**
@@ -229,7 +225,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    */
   @SubscribeMessage("removeDeckFromGame")
   @HasPermissions(Permission.ChangeGameSettings)
-  async removeDeckFromGame(@ConnectedSocket() client: Socket, @MessageBody('deckId') deckId: string): Promise<SocketResponse<GameIdPayload & DecksPayload>> {
+  async removeDeckFromGame(@ConnectedSocket() client: Socket, @MessageBody('deckId') deckId: string): Promise<SocketResponse<null>> {
     const game = this.service.getGameHostedBy(client.session.user);
     if (!game) {
       return SocketResponseBuilder.error("You're not hosting a game.");
@@ -241,20 +237,18 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     const status = await this.service.removeDeckFromGame(game.getId(), deckId);
 
-    const out = SocketResponseBuilder.start<GameIdPayload & DecksPayload>()
-      .useGameStatusCode(status)
-      .data(status === GameStatusCode.ACTION_OK ? { gameId: game.getId(), decks: game.getDecks() } : null)
-      .channel('decksUpdated')
-      .build()
-
     if (status === GameStatusCode.ACTION_OK) {
-      out.emitToRooms(this.server, [
-        GameChannel.GAME_BROWSER,
-        GameChannel.GAME_ROOM(game.getId())
-      ])
+      SocketResponseBuilder.start<GameIdPayload & DecksPayload>()
+        .data({ gameId: game.getId(), decks: game.getDecks() })
+        .channel('decksUpdated')
+        .build()
+        .emitToRooms(this.server, [
+          GameChannel.GAME_BROWSER,
+          GameChannel.GAME_ROOM(game.getId())
+        ]);
     }
 
-    return out;
+    return SocketResponseBuilder.start<null>().build();
   }
 
   /**
@@ -513,16 +507,15 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return SocketResponseBuilder.error("You are not playing or spectating any game.");
     }
 
-    SocketResponseBuilder.start<IChatMessage>()
+    SocketResponseBuilder.start<IMessage>()
       .channel("chat")
       .data({
+        type: 'chat',
         content: message,
-        context: {
-          player: {
-            id: user.id,
-            nickname: user.nickname
-          },
-          timestamp: new Date().getTime()
+        timestamp: new Date().getTime(),
+        sender: {
+          id: user.id,
+          nickname: user.nickname
         }
       })
       .build()
@@ -555,9 +548,8 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const status = game.playCards(game.getPlayer(user.id), cardIds);
 
     if (status === GameStatusCode.ACTION_OK) {
-      SocketResponseBuilder.start<CardIdsPayload & PartialPlayerPayload>()
-        .useGameStatusCode(status)
-        .data(status === GameStatusCode.ACTION_OK ? { cardIds, player: { id: user.id } } : null)
+      SocketResponseBuilder.start<PartialPlayerPayload>()
+        .data({ player: { id: user.id } })
         .channel("cardsPlayed")
         .build()
         .emitToRoom(this.server, GameChannel.GAME_ROOM(game.getId()));
@@ -681,13 +673,14 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * 
    * @param payload the system message information
    */
-  private handleSystemMessage(payload: GameIdPayload & SystemMessagePayload) {
-    SocketResponseBuilder.start<ISystemMessage>()
+  private handleSystemMessage(payload: GameIdPayload & MessagePayload) {
+    console.log("sending system message");
+    console.log(payload);
+    SocketResponseBuilder.start<IMessage>()
       .data({
+        type: 'system',
         content: payload.message.content,
-        context: {
-          timestamp: new Date().getTime()
-        }
+        timestamp: new Date().getTime()
       })
       .channel("systemMessage")
       .build()

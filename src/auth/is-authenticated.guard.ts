@@ -2,6 +2,8 @@ import { CanActivate, ExecutionContext, Injectable } from "@nestjs/common";
 import { Request } from "express";
 import { Observable } from "rxjs";
 import { Socket } from "socket.io";
+import UnauthorizedPayload from "src/shared-types/misc/unauthorized.payload";
+import { SocketResponseBuilder } from "src/util/net/socket-response-builder.class";
 
 /**
  * Ensures the presence of a user object on the http request 
@@ -34,7 +36,12 @@ export class IsAuthenticatedGuard implements CanActivate {
         const socket: Socket = context.switchToWs().getClient();
 
         if (!socket?.session?.user || !socket?.session?.id) {
-            socket.emit("unauthorized", { message: "You must be logged in." });
+            SocketResponseBuilder.start<UnauthorizedPayload>()
+                .data({ message: "You must be logged in." })
+                .channel("unauthorized")
+                .build()
+                .emitToClient(socket);
+                
             return false;
         }
 
