@@ -42,6 +42,7 @@ export class GamesService extends EventEmitter {
         game.on('beginNextRound', this.forwardEvent.bind(this));
         game.on('dealCardToPlayer', this.forwardEvent.bind(this));
         game.on('dealBlackCard', this.forwardEvent.bind(this));
+        game.on('cardsToJudge', this.forwardEvent.bind(this));
         game.on('roundWinner', this.forwardEvent.bind(this));
         game.on('stateTransition', this.forwardEvent.bind(this));
         game.on('illegalStateTransition', this.forwardEvent.bind(this));

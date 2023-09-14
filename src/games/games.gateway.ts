@@ -40,6 +40,7 @@ import SpectatorIdPayload from 'src/shared-types/game/spectator/spectator-id.pay
 import PlayerIdPayload from 'src/shared-types/game/player/player-id.payload';
 import SystemMessagePayload from 'src/shared-types/game/component/message/system-message.payload';
 import ISystemMessage from 'src/shared-types/game/component/message/system-message.interface';
+import WhiteCardsMatrixPayload from 'src/shared-types/card/white/white-cards-matrix.payload';
 
 @WebSocketGateway({
   cors: {
@@ -67,6 +68,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     service.on('beginNextRound', this.handleBeginNextRound.bind(this));
     service.on('dealCardToPlayer', this.handleDealCardToPlayer.bind(this));
     service.on('dealBlackCard', this.handleDealBlackCard.bind(this));
+    service.on('cardsToJudge', this.handleCardsToJudge.bind(this));
     service.on('roundWinner', this.handleRoundWinner.bind(this));
     service.on('stateTransition', this.handleStateTransition.bind(this));
     service.on('illegalStateTransition', this.handleIllegalStateTransition.bind(this));
@@ -148,18 +150,9 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return SocketResponseBuilder.error("You're not hosting a game.");
     }
 
-    const status = await this.service.startGame(game.getId());
-
-    const out = SocketResponseBuilder.start<null>()
-      .useGameStatusCode(status)
-      .channel('gameStarted')
+    return SocketResponseBuilder.start<null>()
+      .useGameStatusCode(await this.service.startGame(game.getId()))
       .build();
-
-    if (status === GameStatusCode.ACTION_OK) {
-      out.emitToRoom(this.server, GameChannel.GAME_ROOM(game.getId()));
-    }
-
-    return out;
   }
 
   /**
@@ -173,6 +166,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @HasPermissions(Permission.StopGame)
   stopGame(client: Socket): SocketResponse<null> {
     const game = this.service.getGameHostedBy(client.session.user);
+
     if (!game) {
       return SocketResponseBuilder.error("You're not hosting a game.");
     }
@@ -689,7 +683,12 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    */
   private handleSystemMessage(payload: GameIdPayload & SystemMessagePayload) {
     SocketResponseBuilder.start<ISystemMessage>()
-      .data(payload.message)
+      .data({
+        content: payload.message.content,
+        context: {
+          timestamp: new Date().getTime()
+        }
+      })
       .channel("systemMessage")
       .build()
       .emitToRoom(this.server, GameChannel.GAME_ROOM(payload.gameId));
@@ -738,6 +737,19 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   /**
+   * Sends down the cards to judge for the round.
+   * 
+   * @param payload the cards to judge payload
+   */
+  private handleCardsToJudge(payload: GameIdPayload & WhiteCardsMatrixPayload) {
+    SocketResponseBuilder.start<WhiteCardsMatrixPayload>()
+      .data(payload)
+      .channel("cardsToJudge")
+      .build()
+      .emitToRoom(this.server, GameChannel.GAME_ROOM(payload.gameId));
+  }
+
+  /**
    * Handles when there is a round winner.
    * 
    * @param payload the round winner payload
@@ -757,8 +769,8 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * 
    * @param payload the state transition payload
    */
-  private handleStateTransition(payload: GameIdPayload & StateTransitionPayload<any>) {
-    SocketResponseBuilder.start<GameIdPayload & StateTransitionPayload<any>>()
+  private handleStateTransition(payload: GameIdPayload & StateTransitionPayload) {
+    SocketResponseBuilder.start<GameIdPayload & StateTransitionPayload>()
       .data(payload)
       .channel("stateTransition")
       .build()
@@ -776,8 +788,8 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * 
    * @param payload the illegal state transition information
    */
-  private handleIllegalStateTransition(payload: GameIdPayload & StateTransitionPayload<null>) {
-    SocketResponseBuilder.start<GameIdPayload & StateTransitionPayload<null>>()
+  private handleIllegalStateTransition(payload: GameIdPayload & StateTransitionPayload) {
+    SocketResponseBuilder.start<GameIdPayload & StateTransitionPayload>()
       .data(payload)
       .channel("illegalStateTransition")
       .build()

@@ -11,10 +11,8 @@ import { SpectatorSerializer } from "src/util/serialization/spectator.serializer
 import GameIdPayload from "src/shared-types/game/game-id.payload";
 import RoundNumberPayload from "src/shared-types/game/component/round-number.payload";
 import JudgeIdPayload from "src/shared-types/game/component/judge-id.payload";
-import SecondsPayload from "src/shared-types/game/component/seconds.payload";
 import StateTransitionPayload from "src/shared-types/game/component/state-transition.payload";
 import PartialPlayerPayload from "src/shared-types/game/player/partial-player.payload";
-import PartialSpectatorPayload from "src/shared-types/game/spectator/partial-spectator.payload";
 import IGame from "src/shared-types/game/game.interface";
 import IPlayer from "src/shared-types/game/player/player.interface";
 import IDeck from "src/shared-types/deck/deck.interface";
@@ -31,6 +29,7 @@ import SpectatorPayload from "src/shared-types/game/spectator/spectator.payload"
 import PlayerIdPayload from "src/shared-types/game/player/player-id.payload";
 import SpectatorIdPayload from "src/shared-types/game/spectator/spectator-id.payload";
 import SystemMessagePayload from "src/shared-types/game/component/message/system-message.payload";
+import WhiteCardsMatrixPayload from "src/shared-types/card/white/white-cards-matrix.payload";
 
 export class Game extends EventEmitter implements IGame {
     static readonly MINIMUM_PLAYERS = 3;
@@ -312,14 +311,20 @@ export class Game extends EventEmitter implements IGame {
             this.players.splice(idx, 1);
         }
 
+        this.emitPlayerLeftGame({ gameId: this.id, playerId: id });
+
         if (this.getHost().id === id) {
-            this.emitStateTransition({ gameId: this.id, to: GameState.Abandoned, from: this.state, context: null });
+            this.emitStateTransition({ gameId: this.id, to: GameState.Abandoned, from: this.state });
             this.state = GameState.Abandoned;
         } else if (this.players.length < Game.MINIMUM_PLAYERS) {
-            this.resetState(GameStatusCode.NOT_ENOUGH_PLAYERS.getMessage());
-        }
+            this.emitSystemMessage({
+                gameId: this.id, message: {
+                    content: "Too many players have left the game. The game will reset."
+                }
+            });
 
-        this.emitPlayerLeftGame({ gameId: this.id, playerId: id });
+            this.resetState();
+        }
 
         if (this.players.length === 0) {
             this.emitGameEmpty({ gameId: this.id });
@@ -617,6 +622,12 @@ export class Game extends EventEmitter implements IGame {
             return GameStatusCode.NOT_ENOUGH_WHITE_CARDS;
         }
 
+        this.emitSystemMessage({
+            gameId: this.id, message: {
+                content: "The game has been started. GLHF!"
+            }
+        });
+
         const initialJudgeIdx = Math.floor(Math.random() * (this.players.length - 1));
         this.players[initialJudgeIdx].state = PlayerState.Judge;
 
@@ -636,12 +647,19 @@ export class Game extends EventEmitter implements IGame {
      *          ACTION_OK: if the game has been forced into
      *          the reset state
      */
-    stop(reason?: string): GameStatusCode {
+    stop(): GameStatusCode {
         if (this.state === GameState.Lobby) {
             return GameStatusCode.NOT_IN_PROGRESS;
         }
 
-        this.resetState(reason ? reason : 'Game stopped by the host');
+        this.emitSystemMessage({
+            gameId: this.id, message: {
+                content: "The game has been stopped by the host."
+            }
+        });
+
+        this.resetState();
+
         return GameStatusCode.ACTION_OK;
     }
 
@@ -677,7 +695,7 @@ export class Game extends EventEmitter implements IGame {
             return;
         }
 
-        this.emitStateTransition({ gameId: this.id, to: GameState.Dealing, from: this.state, context: null });
+        this.emitStateTransition({ gameId: this.id, to: GameState.Dealing, from: this.state });
         this.state = GameState.Dealing;
 
         // discard last round's white cards (if any)
@@ -742,7 +760,7 @@ export class Game extends EventEmitter implements IGame {
             return;
         }
 
-        this.emitStateTransition({ gameId: this.id, to: GameState.Playing, from: this.state, context: null });
+        this.emitStateTransition({ gameId: this.id, to: GameState.Playing, from: this.state });
         this.state = GameState.Playing;
     }
 
@@ -823,11 +841,12 @@ export class Game extends EventEmitter implements IGame {
             return;
         }
 
-        this.emitStateTransition({
-            gameId: this.id, to: GameState.Judging, from: this.state, context: {
-                cardsToJudge: [...this.playedWhiteCards].map(e => e[1])
-            }
-        });
+        this.emitStateTransition({ gameId: this.id, to: GameState.Judging, from: this.state });
+
+        this.emitCardsToJudge({
+            gameId: this.id,
+            matrix: [...this.playedWhiteCards].map(e => e[1])
+        })
 
         this.state = GameState.Judging;
     }
@@ -890,6 +909,12 @@ export class Game extends EventEmitter implements IGame {
 
         winner[0].score++;
 
+        this.emitSystemMessage({
+            gameId: this.id, message: {
+                content: `${winner[0].nickname} has won the round. One point awarded.`
+            }
+        });
+
         this.emitRoundWinner({
             gameId: this.id,
             cards: winner[1],
@@ -904,9 +929,11 @@ export class Game extends EventEmitter implements IGame {
         } else {
             const seconds = this.getRoundIntermissionSeconds();
             if (seconds > 0) {
-                this.emitSystemMessage({ gameId: this.id, message: {
-                    content: `The next round will begin in ${seconds} seconds.`
-                }});
+                this.emitSystemMessage({
+                    gameId: this.id, message: {
+                        content: `The next round will begin in ${seconds} seconds.`
+                    }
+                });
 
                 setTimeout(() => this.beginNextRound(), seconds * 1000);
             } else {
@@ -952,19 +979,23 @@ export class Game extends EventEmitter implements IGame {
             return;
         }
 
-        this.emitStateTransition({ gameId: this.id, to: GameState.Win, from: this.state, context: null });
+        this.emitStateTransition({ gameId: this.id, to: GameState.Win, from: this.state });
         this.state = GameState.Win;
 
         const winner = this.getGameWinner();
-        this.emitSystemMessage({ gameId: this.id, message: {
-            content: `${winner.nickname} has won the game. Congratulations!`
-        }});
+        this.emitSystemMessage({
+            gameId: this.id, message: {
+                content: `${winner.nickname} has won the game. Congratulations!`
+            }
+        });
 
         const seconds = this.getGameWinIntermissionSeconds();
         if (seconds > 0) {
-            this.emitSystemMessage({ gameId: this.id, message: {
-                content: `The game will return to the lobby in ${seconds} seconds.`
-            }});
+            this.emitSystemMessage({
+                gameId: this.id, message: {
+                    content: `The game will return to the lobby in ${seconds} seconds.`
+                }
+            });
 
             setTimeout(() => this.resetState(), seconds * 1000);
         } else {
@@ -979,11 +1010,9 @@ export class Game extends EventEmitter implements IGame {
      * This state is transient and will always move 
      * to the next state.
      */
-    private resetState(reason?: string) {
+    private resetState() {
         this.emitStateTransition({
-            gameId: this.id, to: GameState.Reset, from: this.state, context: {
-                reason
-            }
+            gameId: this.id, to: GameState.Reset, from: this.state
         });
 
         this.state = GameState.Reset;
@@ -1014,7 +1043,7 @@ export class Game extends EventEmitter implements IGame {
 
         this.roundNumber = 0;
 
-        this.emitStateTransition({ gameId: this.id, to: GameState.Lobby, from: this.state, context: null });
+        this.emitStateTransition({ gameId: this.id, to: GameState.Lobby, from: this.state });
         this.state = GameState.Lobby;
     }
 
@@ -1069,12 +1098,7 @@ export class Game extends EventEmitter implements IGame {
     }
 
     private emitSystemMessage(payload: GameIdPayload & SystemMessagePayload) {
-        this.event("systemMessage", {
-            content: payload.message.content,
-            context: {
-                timestamp: new Date().getTime()
-            }
-        });
+        this.event("systemMessage", payload.message);
     }
 
     private emitBeginNextRound(payload: GameIdPayload & JudgeIdPayload & RoundNumberPayload) {
@@ -1089,15 +1113,19 @@ export class Game extends EventEmitter implements IGame {
         this.event("dealBlackCard", payload);
     }
 
+    private emitCardsToJudge(payload: GameIdPayload & WhiteCardsMatrixPayload) {
+        this.event("cardsToJudge", payload);
+    }
+
     private emitRoundWinner(payload: GameIdPayload & PartialPlayerPayload & WhiteCardsPayload) {
         this.event("roundWinner", payload);
     }
 
-    private emitStateTransition(payload: GameIdPayload & StateTransitionPayload<any>) {
+    private emitStateTransition(payload: GameIdPayload & StateTransitionPayload) {
         this.event("stateTransition", payload);
     }
 
-    private emitIllegalStateTransition(payload: GameIdPayload & StateTransitionPayload<null>) {
+    private emitIllegalStateTransition(payload: GameIdPayload & StateTransitionPayload) {
         this.event("illegalStateTransition", payload);
     }
 
