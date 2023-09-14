@@ -1,8 +1,9 @@
 import { IsUUID, Length } from "class-validator";
+import ICreateWhiteCardDto from "src/shared-types/card/white/create-white-card.dto.interface";
 
-export class CreateWhiteCardDto {
+export default class CreateWhiteCardDto implements ICreateWhiteCardDto {
     @IsUUID(4, { each: true })
-    deck_ids: string[];
+    deckIds: string[];
 
     @Length(6)
     content: string;

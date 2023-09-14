@@ -1,6 +1,7 @@
 import { IsNumber, IsOptional, Length } from "class-validator";
+import ICreateDeckDto from "src/shared-types/deck/create-deck.dto.interface";
 
-export class CreateDeckDto {
+export class CreateDeckDto implements ICreateDeckDto {
     @Length(3, 32)
     name: string;
 
