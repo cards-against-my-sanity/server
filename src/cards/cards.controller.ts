@@ -1,7 +1,6 @@
 import { BadRequestException, Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post } from '@nestjs/common';
 import { CardsService } from './cards.service';
 import { HasPermissions } from 'src/permission/permissions.decorator';
-import { Permission } from 'src/permission/permission.class';
 import { RequiredQuery } from 'src/util/decorator/required-query.decorator';
 import { DecksService } from 'src/decks/decks.service';
 import { UpdateWhiteCardDto } from './dto/update-white-card.dto';
@@ -12,6 +11,7 @@ import IWhiteCard from 'src/shared-types/card/white/white-card.interface';
 import IBlackCard from 'src/shared-types/card/black/black-card.interface';
 import CreateWhiteCardDto from './dto/create-white-card.dto';
 import CreateBlackCardDto from './dto/create-black-card.dto';
+import Permission from 'src/shared-types/permission/permission.class';
 
 @Controller('cards')
 export class CardsController {

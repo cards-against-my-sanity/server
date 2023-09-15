@@ -16,7 +16,6 @@ import PartialPlayerPayload from "src/shared-types/game/player/partial-player.pa
 import IGame from "src/shared-types/game/game.interface";
 import IPlayer from "src/shared-types/game/player/player.interface";
 import IDeck from "src/shared-types/deck/deck.interface";
-import { IUser } from "src/shared-types/user/user.interface";
 import WhiteCardPayload from "src/shared-types/card/white/white-card.payload";
 import BlackCardPayload from "src/shared-types/card/black/black-card.payload";
 import WhiteCardsPayload from "src/shared-types/card/white/white-cards.payload";
@@ -31,6 +30,7 @@ import SpectatorIdPayload from "src/shared-types/game/spectator/spectator-id.pay
 import WhiteCardsMatrixPayload from "src/shared-types/card/white/white-cards-matrix.payload";
 import MessagePayload from "src/shared-types/game/component/message/message.payload";
 import ContentPayload from "src/shared-types/game/component/content.payload";
+import IUser from "src/shared-types/user/user.interface";
 
 export class Game extends EventEmitter implements IGame {
     static readonly MINIMUM_PLAYERS = 3;

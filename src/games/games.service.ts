@@ -5,7 +5,7 @@ import { EventEmitter } from 'stream';
 import { GameStatusCode } from './game-status-code';
 import { CardsService } from 'src/cards/cards.service';
 import GameIdPayload from 'src/shared-types/game/game-id.payload';
-import { IUser } from 'src/shared-types/user/user.interface';
+import IUser from 'src/shared-types/user/user.interface';
 
 @Injectable()
 export class GamesService extends EventEmitter {

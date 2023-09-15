@@ -1,7 +1,7 @@
 import IPlayer from "src/shared-types/game/player/player.interface";
-import { IUser } from "src/shared-types/user/user.interface";
 import IWhiteCard from "src/shared-types/card/white/white-card.interface";
 import { PlayerState } from "src/shared-types/game/player/player-state.enum";
+import IUser from "src/shared-types/user/user.interface";
 
 export class Player implements IPlayer {
     id: string;

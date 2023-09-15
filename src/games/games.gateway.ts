@@ -2,7 +2,6 @@ import { ConnectedSocket, MessageBody, OnGatewayConnection, OnGatewayDisconnect,
 import { GamesService } from './games.service';
 import { Server, Socket } from 'socket.io';
 import { HasPermissions } from 'src/permission/permissions.decorator';
-import { Permission } from 'src/permission/permission.class';
 import { UseGuards } from '@nestjs/common';
 import { PermissionsGuard } from 'src/permission/permissions.guard';
 import { GameStatusCode } from './game-status-code';
@@ -40,6 +39,7 @@ import WhiteCardsMatrixPayload from 'src/shared-types/card/white/white-cards-mat
 import MessagePayload from 'src/shared-types/game/component/message/message.payload';
 import IMessage from 'src/shared-types/game/component/message/message.interface';
 import ContentPayload from 'src/shared-types/game/component/content.payload';
+import Permission from 'src/shared-types/permission/permission.class';
 
 @WebSocketGateway({
   cors: {

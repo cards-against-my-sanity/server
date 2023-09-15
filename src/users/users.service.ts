@@ -7,7 +7,7 @@ import { Repository } from 'typeorm';
 import * as argon2 from 'argon2';
 import { UserPermission } from './entities/user-permission.entity';
 import { PermissionUtil } from 'src/permission/permission.util';
-import { IUser } from 'src/shared-types/user/user.interface';
+import IUser from 'src/shared-types/user/user.interface';
 
 @Injectable()
 export class UsersService {

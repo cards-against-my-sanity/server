@@ -3,10 +3,10 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { HasPermissions } from 'src/permission/permissions.decorator';
-import { Permission } from 'src/permission/permission.class';
 import { Request, Response } from 'express';
 import { IsAuthenticatedGuard } from 'src/auth/is-authenticated.guard';
-import { IUser } from 'src/shared-types/user/user.interface';
+import IUser from 'src/shared-types/user/user.interface';
+import Permission from 'src/shared-types/permission/permission.class';
 
 @Controller('users')
 export class UsersController {

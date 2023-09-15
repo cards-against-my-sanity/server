@@ -9,6 +9,9 @@ export class Session {
     @Column()
     ip: string;
 
+    @Column()
+    expires: Date;
+
     @ManyToOne(() => User, { eager: true, onDelete: 'CASCADE' })
     user: User
 }

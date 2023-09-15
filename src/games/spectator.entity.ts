@@ -1,6 +1,5 @@
 import ISpectator from "src/shared-types/game/spectator/spectator.interface";
-import { IUser } from "src/shared-types/user/user.interface";
-
+import IUser from "src/shared-types/user/user.interface";
 export class Spectator implements ISpectator {
     id: string;
     nickname: string;

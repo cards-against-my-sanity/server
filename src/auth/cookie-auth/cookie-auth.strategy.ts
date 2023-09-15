@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { PassportStrategy } from "@nestjs/passport";
 import { Request } from "express";
 import { Strategy } from "passport-custom";
@@ -12,12 +12,19 @@ export class CookieAuthStrategy extends PassportStrategy(Strategy, 'cookie') {
 
     async validate(req: Request) {
         if (!req.signedCookies || !req.signedCookies.sid) {
-            return;
+            return {};
         }
 
         const session = await this.sessionService.findOne(req.signedCookies.sid);
         if (!session) {
-            throw new UnauthorizedException("Session invalid, expired, or revoked.");
+            req.res.clearCookie('sid');
+            return {};
+        }
+
+        const valid = session.expires.getTime() > new Date().getTime();
+        if (!valid) {
+            req.res.clearCookie('sid');
+            return {};
         }
 
         return {

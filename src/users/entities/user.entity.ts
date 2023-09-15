@@ -1,7 +1,7 @@
 import { Exclude } from "class-transformer";
 import { Column, Entity, JoinColumn, OneToMany, OneToOne, PrimaryGeneratedColumn } from "typeorm";
 import { UserPermission } from "./user-permission.entity";
-import { IUser } from "src/shared-types/user/user.interface";
+import IUser from "src/shared-types/user/user.interface";
 
 @Entity()
 export class User implements IUser {

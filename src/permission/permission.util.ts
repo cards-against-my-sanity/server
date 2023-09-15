@@ -1,6 +1,6 @@
+import { PermissionCategory } from "src/shared-types/permission/permission-category.enum";
+import Permission from "src/shared-types/permission/permission.class";
 import { UserPermission } from "src/users/entities/user-permission.entity";
-import { Permission } from "./permission.class";
-import { PermissionCategory } from "src/permission/permission-category.enum";
 
 export class PermissionUtil {
     static createNewUserPermission(): UserPermission {

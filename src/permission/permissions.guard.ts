@@ -1,13 +1,13 @@
 import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { Permission } from 'src/permission/permission.class';
 import { PERMISSIONS_KEY } from './permissions.decorator';
 import { PermissionService } from 'src/permission/permission.service';
 import { Socket } from 'socket.io';
-import { Request } from 'express';
-import { IUser } from 'src/shared-types/user/user.interface';
 import { SocketResponseBuilder } from 'src/util/net/socket-response-builder.class';
 import UnauthorizedPayload from 'src/shared-types/misc/unauthorized.payload';
+import { ObjectUtil } from 'src/util/misc/object-util';
+import Permission from 'src/shared-types/permission/permission.class';
+import IUser from 'src/shared-types/user/user.interface';
 
 @Injectable()
 export class PermissionsGuard implements CanActivate {
@@ -34,12 +34,12 @@ export class PermissionsGuard implements CanActivate {
   }
 
   private canActivateHttp(context: ExecutionContext, requiredPermissions: Permission[]): boolean {
-    const request: Request = context.switchToHttp().getRequest();
-    return this.testUser(request.user, requiredPermissions);
+    return this.testUser(context.switchToHttp().getRequest().user, requiredPermissions);
   }
 
   private canActivateWs(context: ExecutionContext, requiredPermissions: Permission[]): boolean {
     const socket: Socket = context.switchToWs().getClient();
+
     if (!this.testUser(socket.session?.user, requiredPermissions)) {
       SocketResponseBuilder.start<UnauthorizedPayload>()
         .data({ message: "You are not permitted to perform that action." })
@@ -53,7 +53,13 @@ export class PermissionsGuard implements CanActivate {
     return true;
   }
 
-  private testUser(user: IUser, perms: Permission[]): boolean {
-    return !user ? false : perms.every(permission => this.permissionService.hasPermission(user, permission));
+  private testUser(user: IUser, requiredPermissions: Permission[]): boolean {
+    if (!ObjectUtil.notUndefOrNull(user)) {
+      return false;
+    }
+
+    return requiredPermissions.every(permission => {
+      return this.permissionService.hasPermission(user, permission)
+    });
   }
 }

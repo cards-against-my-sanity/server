@@ -3,8 +3,8 @@ import { CreateDeckDto } from './dto/create-deck.dto';
 import { UpdateDeckDto } from './dto/update-deck.dto';
 import { DecksService } from './decks.service';
 import { HasPermissions } from 'src/permission/permissions.decorator';
-import { Permission } from 'src/permission/permission.class';
 import IDeck from 'src/shared-types/deck/deck.interface';
+import Permission from 'src/shared-types/permission/permission.class';
 
 @Controller('decks')
 export class DecksController {

@@ -2,8 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Session } from './entities/session.entity';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
-import { User } from 'src/users/entities/user.entity';
-import { IUser } from 'src/shared-types/user/user.interface';
+import IUser from 'src/shared-types/user/user.interface';
 
 @Injectable()
 export class SessionService {
@@ -16,10 +15,13 @@ export class SessionService {
      * @param ip the ip address to associate with the session
      * @returns the newly created session
      */
-    async createSession(user: IUser, ip: string): Promise<Session> {
+    async createSession(user: IUser, ip: string, remember: boolean): Promise<Session> {
+        const now = new Date();
+
         const session = this.repo.create({
             ip,
-            user
+            user,
+            expires: new Date(now.getTime() + (remember ? 604800000 : 86400000))
         });
 
         await this.repo.save(session);
@@ -37,7 +39,7 @@ export class SessionService {
     }
 
     /**
-     * Finda all sessions in the database belonging to a user.
+     * Finds all sessions in the database belonging to a user.
      * 
      * @param user_id the id of the session owner
      * @returns the sessions belonging to the user, if any
@@ -47,11 +49,17 @@ export class SessionService {
     }
 
     /**
-     * Removes a sesson in the database by id.
+     * Finds a session in the database by id, updates
+     * its expiry value to right now, and then saves it
+     * back.
      * 
-     * @param id the id of the session to remove
+     * @param id the session id
      */
-    removeSession(id: string): void {
-        this.repo.delete({ id });
+    async setExpiresNow(id: string): Promise<void> {
+        const session = await this.findOne(id);
+        if (session) {
+            session.expires = new Date();
+            this.repo.save(session);
+        }
     }
 }

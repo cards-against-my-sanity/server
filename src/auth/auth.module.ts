@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { AuthService } from './auth.service';
 import { PassportModule } from '@nestjs/passport';
 import { AuthController } from './auth.controller';
 import { LocalAuthModule } from './local-auth/local-auth.module';
@@ -17,8 +16,6 @@ import { CookieAuthModule } from './cookie-auth/cookie-auth.module';
     UsersModule,
     SessionModule
   ],
-  controllers: [AuthController],
-  providers: [AuthService],
-  exports: [AuthService]
+  controllers: [AuthController]
 })
 export class AuthModule { }
