@@ -7,8 +7,10 @@ export class GameSettingsSerializer {
             maxPlayers: settings.maxPlayers,
             maxSpectators: settings.maxSpectators,
             maxScore: settings.maxScore,
-            roundIntermissionSeconds: settings.roundIntermissionSeconds,
-            gameWinIntermissionSeconds: settings.gameWinIntermissionSeconds,
+            roundIntermissionTimer: settings.roundIntermissionTimer,
+            gameWinIntermissionTimer: settings.gameWinIntermissionTimer,
+            playingTimer: settings.playingTimer,
+            judgingTimer: settings.judgingTimer,
             allowPlayersToJoinMidGame: settings.allowPlayersToJoinMidGame
         };
     }

@@ -40,6 +40,7 @@ import MessagePayload from 'src/shared-types/game/component/message/message.payl
 import IMessage from 'src/shared-types/game/component/message/message.interface';
 import ContentPayload from 'src/shared-types/game/component/content.payload';
 import Permission from 'src/shared-types/permission/permission.class';
+import { GameState } from 'src/shared-types/game/game-state.enum';
 
 @WebSocketGateway({
   cors: {
@@ -69,6 +70,8 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     service.on('dealBlackCard', this.handleDealBlackCard.bind(this));
     service.on('cardsToJudge', this.handleCardsToJudge.bind(this));
     service.on('roundWinner', this.handleRoundWinner.bind(this));
+    service.on('startTimer', this.handleStartTimer.bind(this));
+    service.on('clearTimer', this.handleClearTimer.bind(this));
     service.on('stateTransition', this.handleStateTransition.bind(this));
     service.on('illegalStateTransition', this.handleIllegalStateTransition.bind(this));
   }
@@ -86,7 +89,10 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage("listGames")
   listGames(): SocketResponse<IGame[]> {
     return SocketResponseBuilder.start<IGame[]>()
-      .data(this.service.getGames().map(g => GameSerializer.serialize(g)))
+      .data(this.service.getGames()
+        .filter(g => g.state !== GameState.Abandoned)
+        .map(g => GameSerializer.serialize(g))
+      )
       .build();
   }
 
@@ -302,20 +308,36 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
     }
 
-    if (ObjectUtil.notUndefOrNull(settings.roundIntermissionSeconds)) {
-      if (settings.roundIntermissionSeconds < 0) {
-        settings.roundIntermissionSeconds = 0;
+    if (ObjectUtil.notUndefOrNull(settings.roundIntermissionTimer)) {
+      if (settings.roundIntermissionTimer < 0) {
+        settings.roundIntermissionTimer = 0;
       }
 
-      game.setRoundIntermissionSeconds(settings.roundIntermissionSeconds);
+      game.setRoundIntermissionTimer(settings.roundIntermissionTimer);
     }
 
-    if (ObjectUtil.notUndefOrNull(settings.gameWinIntermissionSeconds)) {
-      if (settings.gameWinIntermissionSeconds < 0) {
-        settings.gameWinIntermissionSeconds = 0;
+    if (ObjectUtil.notUndefOrNull(settings.gameWinIntermissionTimer)) {
+      if (settings.gameWinIntermissionTimer < 0) {
+        settings.gameWinIntermissionTimer = 0;
       }
 
-      game.setGameWinIntermissionSeconds(settings.gameWinIntermissionSeconds);
+      game.setGameWinIntermissionTimer(settings.gameWinIntermissionTimer);
+    }
+
+    if (ObjectUtil.notUndefOrNull(settings.playingTimer)) {
+      if (settings.playingTimer < 15) {
+        settings.playingTimer = 15;
+      }
+
+      game.setPlayingTimer(settings.playingTimer);
+    }
+
+    if (ObjectUtil.notUndefOrNull(settings.judgingTimer)) {
+      if (settings.judgingTimer < 15) {
+        settings.judgingTimer = 15;
+      }
+
+      game.setJudgingTimer(settings.judgingTimer);
     }
 
     if (ObjectUtil.notUndefOrNull(settings.allowPlayersToJoinMidGame)) {
@@ -546,7 +568,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return SocketResponseBuilder.error("You are not playing any game.");
     }
 
-    const status = game.playCards(game.getPlayer(user.id), cardIds);
+    const status = game.playCards(user.id, cardIds);
 
     if (status === GameStatusCode.ACTION_OK) {
       SocketResponseBuilder.start<PartialPlayerPayload>()
@@ -579,7 +601,7 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return SocketResponseBuilder.error("You are not playing any game.");
     }
 
-    const status = game.judgeCards(game.getPlayer(user.id), cards);
+    const status = game.judgeCards(user.id, cards);
 
     return SocketResponseBuilder.start<null>()
       .useGameStatusCode(status)
@@ -750,6 +772,31 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     SocketResponseBuilder.start<GameIdPayload & PartialPlayerPayload & WhiteCardsPayload>()
       .data(payload)
       .channel("roundWinner")
+      .build()
+      .emitToRoom(this.server, GameChannel.GAME_ROOM(payload.gameId));
+  }
+
+  /**
+   * Handles when a timer is started in a game.
+   * 
+   * @param payload the timer payload
+   */
+  private handleStartTimer(payload: GameIdPayload & SecondsPayload) {
+    SocketResponseBuilder.start<SecondsPayload>()
+      .data(payload)
+      .channel("startTimer")
+      .build()
+      .emitToRoom(this.server, GameChannel.GAME_ROOM(payload.gameId));
+  }
+
+  /**
+   * Handles when a timer is cleared in a game.
+   * 
+   * @param payload the clear timer payload
+   */
+  private handleClearTimer(payload: GameIdPayload) {
+    SocketResponseBuilder.start<null>()
+      .channel("clearTimer")
       .build()
       .emitToRoom(this.server, GameChannel.GAME_ROOM(payload.gameId));
   }
