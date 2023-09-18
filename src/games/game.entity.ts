@@ -31,12 +31,9 @@ import WhiteCardsMatrixPayload from "src/shared-types/card/white/white-cards-mat
 import IUser from "src/shared-types/user/user.interface";
 import { setTimeout, clearTimeout } from "timers";
 import SecondsPayload from "src/shared-types/game/component/seconds.payload";
+import GameConstants from "src/shared-types/game/game.constants";
 
 export class Game extends EventEmitter implements IGame {
-    static readonly MINIMUM_PLAYERS = 3;
-    static readonly MINIMUM_BLACK_CARDS = 50;
-    static readonly MINIMUM_WHITE_CARDS_PER_PLAYER = 20;
-
     id: string;
     host: Partial<IPlayer>;
     decks: IDeck[] = [];
@@ -167,12 +164,12 @@ export class Game extends EventEmitter implements IGame {
     setCards(blackCards: IBlackCard[], whiteCards: IWhiteCard[]) {
         this.availableBlackCards.length = 0;
         this.discardedBlackCards.length = 0;
-        this.availableBlackCards.push(...blackCards);
+        this.availableBlackCards.push(...new Map(blackCards.map(bc => [bc.content, bc])).values());
         ArrayShuffler.shuffle(this.availableBlackCards);
 
         this.availableWhiteCards.length = 0;
         this.discardedWhiteCards.length = 0;
-        this.availableWhiteCards.push(...whiteCards);
+        this.availableWhiteCards.push(...new Map(whiteCards.map(wc => [wc.content, wc])).values());
         ArrayShuffler.shuffle(this.availableWhiteCards);
     }
 
@@ -322,7 +319,7 @@ export class Game extends EventEmitter implements IGame {
         if (this.getHost().id === id) {
             this.emitStateTransition({ to: GameState.Abandoned, from: this.state });
             this.state = GameState.Abandoned;
-        } else if (this.players.length < Game.MINIMUM_PLAYERS) {
+        } else if (this.players.length < GameConstants.MINIMUM_PLAYERS) {
             if (![GameState.Lobby, GameState.Abandoned].includes(this.state)) {
                 this.emitSystemMessage("Too many players have left the game. The game will reset.");
                 this.resetState();
@@ -538,7 +535,7 @@ export class Game extends EventEmitter implements IGame {
             seconds = 0;
         }
 
-        this.settings.roundIntermissionTimer = seconds;
+        this.settings.roundIntermissionTimer = Math.min(seconds, GameConstants.MAX_TIMER_VALUE);
         return GameStatusCode.ACTION_OK;
     }
 
@@ -560,7 +557,7 @@ export class Game extends EventEmitter implements IGame {
             seconds = 0;
         }
 
-        this.settings.gameWinIntermissionTimer = seconds;
+        this.settings.gameWinIntermissionTimer = Math.min(seconds, GameConstants.MAX_TIMER_VALUE);
         return GameStatusCode.ACTION_OK;
     }
 
@@ -582,7 +579,7 @@ export class Game extends EventEmitter implements IGame {
             seconds = 15;
         }
 
-        this.settings.playingTimer = seconds;
+        this.settings.playingTimer = Math.min(seconds, GameConstants.MAX_TIMER_VALUE);
         return GameStatusCode.ACTION_OK;
     }
 
@@ -604,7 +601,7 @@ export class Game extends EventEmitter implements IGame {
             seconds = 15;
         }
 
-        this.settings.judgingTimer = seconds;
+        this.settings.judgingTimer = Math.min(seconds, GameConstants.MAX_TIMER_VALUE);
         return GameStatusCode.ACTION_OK;
     }
 
@@ -663,15 +660,15 @@ export class Game extends EventEmitter implements IGame {
             return GameStatusCode.NOT_IN_LOBBY_STATE;
         }
 
-        if (this.players.length < Game.MINIMUM_PLAYERS) {
+        if (this.players.length < GameConstants.MINIMUM_PLAYERS) {
             return GameStatusCode.NOT_ENOUGH_PLAYERS;
         }
 
-        if (this.availableBlackCards.length < Game.MINIMUM_BLACK_CARDS) {
+        if (this.availableBlackCards.length < GameConstants.MINIMUM_BLACK_CARDS) {
             return GameStatusCode.NOT_ENOUGH_BLACK_CARDS;
         }
 
-        if (this.availableWhiteCards.length < (Game.MINIMUM_WHITE_CARDS_PER_PLAYER * this.players.length)) {
+        if (this.availableWhiteCards.length < (GameConstants.MINIMUM_WHITE_CARDS_PER_PLAYER * this.players.length)) {
             return GameStatusCode.NOT_ENOUGH_WHITE_CARDS;
         }
 
@@ -810,13 +807,7 @@ export class Game extends EventEmitter implements IGame {
         this.emitStateTransition({ to: GameState.Playing, from: this.state });
         this.state = GameState.Playing;
 
-        this.players.forEach(p => {
-            if (p.state !== PlayerState.Judge) {
-                p.needToPlay = true;
-            } else {
-                p.needToPlay = false;
-            }
-        });
+        this.players.forEach(p => p.needToPlay = p.state !== PlayerState.Judge);
 
         this.setGameTimeout(this.getPlayingTimer(), () => {
             this.players.forEach(player => {
@@ -828,8 +819,9 @@ export class Game extends EventEmitter implements IGame {
 
             // if removePlayer threw the game into Reset,
             // the game transitions to Lobby before removePlayer
-            // returns
-            if (this.state !== GameState.Lobby) {
+            // returns. if removePlayer removed the host,
+            // the game will be in Abandoned state.
+            if (![GameState.Lobby, GameState.Abandoned].includes(this.state)) {
                 this.judgingState();
             }
         });
@@ -939,9 +931,7 @@ export class Game extends EventEmitter implements IGame {
 
         this.state = GameState.Judging;
 
-        this.players.forEach(p => {
-            p.needToPlay = p.state === PlayerState.Judge;
-        });
+        this.players.forEach(p => p.needToPlay = p.state === PlayerState.Judge);
 
         this.setGameTimeout(this.getJudgingTimer(), () => {
             const judge = this.players.find(p => p.state === PlayerState.Judge);
@@ -951,8 +941,9 @@ export class Game extends EventEmitter implements IGame {
 
                 // if removePlayer threw the game into Reset,
                 // the game transitions to Lobby before removePlayer
-                // returns
-                if (this.state !== GameState.Lobby) {
+                // returns. if removePlayer removed the host,
+                // the game will be in Abandoned state.
+                if (![GameState.Lobby, GameState.Abandoned].includes(this.state)) {
                     this.returnPlayedCardsToHands();
                     this.beginNextRound();
                 }
@@ -1021,6 +1012,8 @@ export class Game extends EventEmitter implements IGame {
         if (judgedCards.length > this.currentBlackCard.pick) {
             return GameStatusCode.TOO_MANY_CARDS;
         }
+
+        player.needToPlay = false;
 
         this.clearGameTimeout();
 

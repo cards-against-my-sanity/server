@@ -41,6 +41,7 @@ import IMessage from 'src/shared-types/game/component/message/message.interface'
 import ContentPayload from 'src/shared-types/game/component/content.payload';
 import Permission from 'src/shared-types/permission/permission.class';
 import { GameState } from 'src/shared-types/game/game-state.enum';
+import GameConstants from 'src/shared-types/game/game.constants';
 
 @WebSocketGateway({
   cors: {
@@ -283,8 +284,8 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (ObjectUtil.notUndefOrNull(settings.maxPlayers)) {
       if (game.getPlayerCount() > settings.maxPlayers) {
         return SocketResponseBuilder.error("You can't set max players lower than the current player count.");
-      } else if (settings.maxPlayers < Game.MINIMUM_PLAYERS) {
-        return SocketResponseBuilder.error(`You can't set max players lower than ${Game.MINIMUM_PLAYERS}.`);
+      } else if (settings.maxPlayers < GameConstants.MINIMUM_PLAYERS) {
+        return SocketResponseBuilder.error(`You can't set max players lower than ${GameConstants.MINIMUM_PLAYERS}.`);
       } else {
         game.setMaxPlayers(Math.floor(settings.maxPlayers));
       }
@@ -311,6 +312,8 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (ObjectUtil.notUndefOrNull(settings.roundIntermissionTimer)) {
       if (settings.roundIntermissionTimer < 0) {
         settings.roundIntermissionTimer = 0;
+      } else if (settings.roundIntermissionTimer > GameConstants.MAX_TIMER_VALUE) {
+        settings.roundIntermissionTimer = GameConstants.MAX_TIMER_VALUE;
       }
 
       game.setRoundIntermissionTimer(settings.roundIntermissionTimer);
@@ -319,6 +322,8 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (ObjectUtil.notUndefOrNull(settings.gameWinIntermissionTimer)) {
       if (settings.gameWinIntermissionTimer < 0) {
         settings.gameWinIntermissionTimer = 0;
+      } else if (settings.gameWinIntermissionTimer > GameConstants.MAX_TIMER_VALUE) {
+        settings.gameWinIntermissionTimer = GameConstants.MAX_TIMER_VALUE;
       }
 
       game.setGameWinIntermissionTimer(settings.gameWinIntermissionTimer);
@@ -327,6 +332,8 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (ObjectUtil.notUndefOrNull(settings.playingTimer)) {
       if (settings.playingTimer < 15) {
         settings.playingTimer = 15;
+      } else if (settings.playingTimer > GameConstants.MAX_TIMER_VALUE) {
+        settings.playingTimer = GameConstants.MAX_TIMER_VALUE;
       }
 
       game.setPlayingTimer(settings.playingTimer);
@@ -335,6 +342,8 @@ export class GamesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (ObjectUtil.notUndefOrNull(settings.judgingTimer)) {
       if (settings.judgingTimer < 15) {
         settings.judgingTimer = 15;
+      } else if (settings.judgingTimer > GameConstants.MAX_TIMER_VALUE) {
+        settings.judgingTimer = GameConstants.MAX_TIMER_VALUE;
       }
 
       game.setJudgingTimer(settings.judgingTimer);
