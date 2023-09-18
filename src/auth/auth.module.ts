@@ -6,6 +6,7 @@ import { SessionModule } from 'src/session/session.module';
 import { UsersModule } from 'src/users/users.module';
 import { AnonAuthModule } from './anon-auth/anon-auth.module';
 import { CookieAuthModule } from './cookie-auth/cookie-auth.module';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
   imports: [
@@ -14,7 +15,8 @@ import { CookieAuthModule } from './cookie-auth/cookie-auth.module';
     LocalAuthModule,
     CookieAuthModule,
     UsersModule,
-    SessionModule
+    SessionModule,
+    ConfigModule
   ],
   controllers: [AuthController]
 })

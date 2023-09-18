@@ -34,7 +34,7 @@ import { CookieAuthWithAnonFallbackGuard } from './auth/cookie-auth/cookie-auth-
         password: configService.get<string>('DATABASE_PASS'),
         database: configService.get<string>('DATABASE_NAME'),
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        synchronize: true,
+        synchronize: configService.get<string>("NODE_ENV") === 'development',
       })
     }),
     GamesModule

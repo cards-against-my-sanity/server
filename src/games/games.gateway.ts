@@ -36,16 +36,16 @@ import SpectatorPayload from 'src/shared-types/game/spectator/spectator.payload'
 import SpectatorIdPayload from 'src/shared-types/game/spectator/spectator-id.payload';
 import PlayerIdPayload from 'src/shared-types/game/player/player-id.payload';
 import WhiteCardsMatrixPayload from 'src/shared-types/card/white/white-cards-matrix.payload';
-import MessagePayload from 'src/shared-types/game/component/message/message.payload';
 import IMessage from 'src/shared-types/game/component/message/message.interface';
 import ContentPayload from 'src/shared-types/game/component/content.payload';
 import Permission from 'src/shared-types/permission/permission.class';
 import { GameState } from 'src/shared-types/game/game-state.enum';
 import GameConstants from 'src/shared-types/game/game.constants';
+import 'dotenv/config';
 
 @WebSocketGateway({
   cors: {
-    origin: 'http://localho.st:3000',
+    origin: process.env.CORS_ORIGINS.split('\t'),
     credentials: true
   }
 })

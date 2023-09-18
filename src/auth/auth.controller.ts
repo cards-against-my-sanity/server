@@ -4,10 +4,14 @@ import { Request, Response } from 'express';
 import { IsAuthenticatedGuard } from './is-authenticated.guard';
 import { SessionService } from 'src/session/session.service';
 import IUser from 'src/shared-types/user/user.interface';
+import { ConfigService } from '@nestjs/config';
 
 @Controller('auth')
 export class AuthController {
-    constructor(private readonly sessionService: SessionService) { }
+    constructor(
+        private readonly sessionService: SessionService,
+        private readonly configService: ConfigService
+    ) { }
 
     @Post('login')
     @UseGuards(LocalAuthGuard)
@@ -17,7 +21,13 @@ export class AuthController {
         res.cookie(
             'sid',
             session.id,
-            { httpOnly: true, signed: true, sameSite: 'lax', expires: session.expires }
+            { 
+                httpOnly: true, 
+                secure: this.configService.get<string>("NODE_ENV") === 'production',
+                signed: true, 
+                sameSite: 'lax', 
+                expires: session.expires
+            }
         );
 
         return req.user;
